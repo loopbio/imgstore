@@ -1,0 +1,48 @@
+{% set name = "imgstore" %}
+{% set version = "0.1.0" %}
+{% set md5 = "e8e8c17833e4f30304893021f6004006" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  fn: {{ name }}-{{ version }}.tar.gz
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  md5: {{ md5 }}
+
+build:
+  number: 0
+  script:
+    - python setup.py install
+
+requirements:
+  build:
+    - python
+
+  run:
+    - python
+    - numpy
+    - pandas
+    - bloscpack
+    - opencv
+    - ruamel.yaml
+
+test:
+  requires:
+    - pytest
+    - pytest-cov
+    - pytest-pep8
+  imports:
+    - imgstore
+  commands:
+    - py.test -v -rs --doctest-modules --pep8 --cov --cov-report term-missing imgstore --pyargs imgstore
+
+about:
+  home: https://github.com/loopbio/imgstore
+  license: BSD 3-Clause
+  summary: IMGStore houses your video frames
+
+extra:
+  recipe-maintainers:
+    - sdvillal
