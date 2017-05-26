@@ -383,3 +383,24 @@ def test_store_frame_metadata(request):
             break
 
     d.close()
+
+def test_videoimgstore_mp4():
+    L = 16
+    SZ = 512
+
+    d = imgstore.new_for_filename(os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml'))
+    assert d.frame_max == 178
+    assert d.frame_min == 0
+    assert d.chunks == [0, 1]
+
+    for i in range(3):
+        img, (_frame_number, _frame_timestamp) = d.get_next_image()
+        assert img.shape == (SZ, SZ)
+        assert _frame_number == i
+        assert decode_image(img, nbits=L, imgsize=SZ) == i
+
+    for i in (7,57,98,12,168):
+        img, (_frame_number, _frame_timestamp) = d.get_image(i)
+        assert img.shape == (SZ, SZ)
+        assert _frame_number == i
+        assert decode_image(img, nbits=L, imgsize=SZ) == i

@@ -1,0 +1,9 @@
+__store:
+  chunksize: 100
+  class: VideoImgStore
+  encoding: ''
+  format: libx264
+  imgdtype: uint8
+  imgshape: [512, 512]
+  uuid: 3de552dc21ef4150b8ead8adb844a0e3
+  version: 2
