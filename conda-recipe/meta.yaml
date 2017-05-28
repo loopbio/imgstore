@@ -36,7 +36,7 @@ test:
   imports:
     - imgstore
   commands:
-    - py.test -v -rs --doctest-modules --pep8 --cov --cov-report term-missing imgstore --pyargs imgstore
+    - py.test -v -rs --capture=no --doctest-modules --pep8 --cov --cov-report term-missing imgstore --pyargs imgstore
 
 about:
   home: https://github.com/loopbio/imgstore
