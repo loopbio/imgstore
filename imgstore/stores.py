@@ -207,6 +207,7 @@ class _ImgStore(object):
         with open(os.path.join(self._basedir, STORE_MD_FILENAME), 'wt') as f:
             yaml.safe_dump(metadata, f)
 
+        # noinspection PyUnresolvedReferences
         smd = metadata.pop(STORE_MD_KEY)
         self._metadata = smd
         self._user_metadata.update(metadata)
