@@ -1,0 +1,27 @@
+name: imgstore
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+
+  - python
+
+  - numpy
+  - pandas
+  - bloscpack
+
+  - opencv
+
+  - ruamel.yaml
+
+  - ipython
+  - jupyter
+
+  - pytest
+  - pytest-cov
+  - pytest-pep8
+
+  - pip:
+    - "--editable=./"
