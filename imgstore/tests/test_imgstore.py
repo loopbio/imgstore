@@ -10,8 +10,7 @@ import time
 import cv2
 import pytest
 
-from imgstore import imgstore
-
+from imgstore import stores
 from imgstore.tests import TEST_DATA_DIR
 
 
@@ -54,7 +53,7 @@ def graffiti():
     return cv2.imread(os.path.join(TEST_DATA_DIR, 'graffiti.png'), cv2.IMREAD_COLOR)
 
 
-@pytest.mark.parametrize('fmt', (pytest.mark.skipif(imgstore.bloscpack is None,
+@pytest.mark.parametrize('fmt', (pytest.mark.skipif(stores.bloscpack is None,
                                                     reason='bloscpack not installed')('bpk'),
                                  'mjpeg',
                                  'npy', 'tif', 'png', 'ppm', 'pgm', 'pbm', 'bmp', 'jpg'))
@@ -72,7 +71,7 @@ def test_imgstore(request, grey_image, fmt):
                   metadata={'timezone': 'Europe/Austria'},
                   format=fmt)
 
-    d = imgstore.new_for_format(fmt, **kwargs)
+    d = stores.new_for_format(fmt, **kwargs)
 
     frame_times = {}
 
@@ -97,8 +96,8 @@ def test_imgstore(request, grey_image, fmt):
            cmp_ratio,
            '' if d.lossless else 'LOSSY'))
 
-    d = imgstore.new_for_filename(os.path.join(d.filename, imgstore.STORE_MD_FILENAME),
-                                  basedir=tdir, mode='r')
+    d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME),
+                                basedir=tdir, mode='r')
 
     assert d.user_metadata['timezone'] == 'Europe/Austria'
 
@@ -129,7 +128,7 @@ def test_videoimgstore(request, graffiti, fmt):
                   chunksize=50,
                   format=fmt)
 
-    d = imgstore.new_for_format(fmt, **kwargs)
+    d = stores.new_for_format(fmt, **kwargs)
 
     F = 100
 
@@ -158,8 +157,8 @@ def test_videoimgstore(request, graffiti, fmt):
            cmp_ratio,
            '' if d.lossless else 'LOSSY '))
 
-    d = imgstore.new_for_filename(os.path.join(d.filename, imgstore.STORE_MD_FILENAME),
-                                  basedir=tdir, mode='r')
+    d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME),
+                                basedir=tdir, mode='r')
 
     for f in range(F):
         img, (frame_number, frame_time) = d.get_image(frame_number=f)
@@ -208,7 +207,7 @@ def test_imgstore_outoforder(request,  fmt, imgtype):
                   chunksize=5,
                   format=fmt)
 
-    d = imgstore.new_for_format(fmt, **kwargs)
+    d = stores.new_for_format(fmt, **kwargs)
 
     assert d.image_shape == orig_img.shape
 
@@ -259,7 +258,7 @@ def test_imgstore_outoforder(request,  fmt, imgtype):
 
     d.close()
 
-    d = imgstore.new_for_filename(os.path.join(d.filename, imgstore.STORE_MD_FILENAME))
+    d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME))
 
     assert d.image_shape == orig_img.shape
 
@@ -320,12 +319,12 @@ def test_store_frame_metadata(request):
     tdir = tempfile.mkdtemp()
     request.addfinalizer(lambda: shutil.rmtree(tdir))
 
-    d = imgstore.DirectoryImgStore(basedir=tdir,
-                                   mode='w',
-                                   imgshape=(SZ, SZ),
-                                   imgdtype=np.uint8,
-                                   chunksize=5,
-                                   format='npy')
+    d = stores.DirectoryImgStore(basedir=tdir,
+                                 mode='w',
+                                 imgshape=(SZ, SZ),
+                                 imgdtype=np.uint8,
+                                 chunksize=5,
+                                 format='npy')
 
     N = 100
 
@@ -349,7 +348,7 @@ def test_store_frame_metadata(request):
 
     assert d.frame_count == len(fns)
 
-    d = imgstore.DirectoryImgStore(basedir=tdir, mode='r')
+    d = stores.DirectoryImgStore(basedir=tdir, mode='r')
 
     assert d.frame_count == len(fns)
 
@@ -372,7 +371,7 @@ def test_store_frame_metadata(request):
         sfn = decode_image(img, imgsize=SZ)
         assert int(sfn) == frame_number
 
-    d = imgstore.DirectoryImgStore(basedir=tdir, mode='r')
+    d = stores.DirectoryImgStore(basedir=tdir, mode='r')
 
     fniter = iter(fns)
     while True:
@@ -384,11 +383,12 @@ def test_store_frame_metadata(request):
 
     d.close()
 
+
 def test_videoimgstore_mp4():
     L = 16
     SZ = 512
 
-    d = imgstore.new_for_filename(os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml'))
+    d = stores.new_for_filename(os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml'))
     assert d.frame_max == 178
     assert d.frame_min == 0
     assert d.chunks == [0, 1]
@@ -399,7 +399,7 @@ def test_videoimgstore_mp4():
         assert _frame_number == i
         assert decode_image(img, nbits=L, imgsize=SZ) == i
 
-    for i in (7,57,98,12,168):
+    for i in (7, 57, 98, 12, 168):
         img, (_frame_number, _frame_timestamp) = d.get_image(i)
         assert img.shape == (SZ, SZ)
         assert _frame_number == i
