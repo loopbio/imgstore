@@ -11,6 +11,7 @@ import numpy as np
 if cv2.__version__.startswith('3.'):
     FourCC = cv2.VideoWriter_fourcc
 else:
+    # noinspection PyUnresolvedReferences
     FourCC = cv2.cv.CV_FOURCC
 
 
@@ -142,7 +143,7 @@ def main_viewer():
     import argparse
     import logging
 
-    from .imgstore import new_for_filename, STORE_MD_FILENAME
+    from imgstore.stores import new_for_filename, STORE_MD_FILENAME
 
     logging.basicConfig(level=logging.DEBUG)
 
@@ -165,7 +166,7 @@ def main_viewer():
 
     while True:
         try:
-            img, (fn, ts) = store.get_next_image()
+            img, _ = store.get_next_image()
         except EOFError:
             break
 
@@ -182,8 +183,9 @@ def main_saver():
     import logging
     import time
     import itertools
+    import errno
 
-    from .imgstore import get_supported_formats, new_for_format, _ensure_color
+    from imgstore.stores import get_supported_formats, new_for_format
 
     logging.basicConfig(level=logging.DEBUG)
 
@@ -193,6 +195,7 @@ def main_saver():
                         choices=get_supported_formats(), default='mjpeg')
     args = parser.parse_args()
 
+    # noinspection PyArgumentList
     cap = cv2.VideoCapture(0)
     _, img = cap.read()
 
