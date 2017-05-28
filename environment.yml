@@ -16,9 +16,6 @@ dependencies:
 
   - ruamel.yaml
 
-  - ipython
-  - jupyter
-
   - pytest
   - pytest-cov
   - pytest-pep8
