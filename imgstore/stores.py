@@ -586,8 +586,8 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
         elif self._format == 'npy':
             img = np.load(path)
         elif self._format == 'bpk':
-            img = bloscpack.unpack_ndarray_file(path)
-        # noinspection PyUnboundLocalVariable
+            with open(path, 'rb') as reader:
+                img = bloscpack.numpy_io.unpack_ndarray(bloscpack.file_io.CompressedFPSource(reader))
         return img, (self._chunk_md['frame_number'][idx], self._chunk_md['frame_time'][idx])
 
     def _load_chunk(self, n):
