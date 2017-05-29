@@ -19,7 +19,7 @@ setup(
     license='BSD 3 clause',
     description='IMGStore houses your video frames',
     long_description=long_description,
-    version='0.1.2',
+    version='0.1.3',
     url='https://github.com/loopbio/imgstore',
     author='John Stowers, Santi Villalba',
     author_email='john@loopbio.com, santi@loopbio.com',
