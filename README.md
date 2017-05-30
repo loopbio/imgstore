@@ -1,7 +1,11 @@
 IMGStore houses your video frames
 =================================
 
-IMGStore allows to read (and write) videos recorded with loopbio's [Motif](http://loopbio.com/recording/) system.
+Imgstore is a container for video frames and metadata. It allows efficient storage and seeking
+through recordings from hours to weeks in duration. It supports compressed and uncompressed formats.
+
+Imgstore allows reading (and writing) videos recorded with
+loopbio's [Motif](http://loopbio.com/recording/) recording system.
 
 # Example: write a store
 
@@ -17,7 +21,8 @@ blank_image = np.zeros((height,width,3), np.uint8)
 store = imgstore.new_for_format('jpg', mode='w', basedir='mystore', imgshape=blank_image.shape, imgdtype=blank_image.dtype, chunksize=10)
 
 for i in range(40):
-    img = cv2.putText(blank_image.copy(),str(i),(0,300), cv2.FONT_HERSHEY_SIMPLEX, 4,255)
+    img = blank_image.copy()
+    cv2.putText(img,str(i),(0,300), cv2.FONT_HERSHEY_SIMPLEX, 4, 255)
     store.add_image(img, i, time.time())
 
 store.close()
