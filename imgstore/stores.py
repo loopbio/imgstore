@@ -260,6 +260,10 @@ class _ImgStore(object):
     def duration(self):
         return self._tN - self._t0
 
+    @property
+    def full_path(self):
+        return os.path.join(self._basedir, STORE_MD_FILENAME)
+
     def disable_decoding(self):
         self._decode_image = lambda x: x
 
@@ -382,21 +386,82 @@ class _ImgStore(object):
     def get_frame_metadata(self):
         return {}
 
+    def reindex(self):
+        """ modifies the current imgstore so that all framenumbers before frame_number=0 are negative
+
+        if there are multiple frame_numbers equal to zero then this operation aborts. this functions also
+        updates the frame_number of any stored extra data. the original frame_number prior to calling
+        reindex() is stored in '_frame_number_before_reindex' """
+        md = self.get_frame_metadata()
+        fn = md['frame_number']
+
+        nzeros = fn.count(0)
+        if nzeros != 1:
+            raise ValueError("%d frame_number=0 found (should be 1)" % nzeros)
+
+        # get index and time of sync frame
+        zero_idx = fn.index(0)
+        self._log.info('reindexing about frame_number=0 at index=%d' % zero_idx)
+
+        fn_new = fn[:]
+        fn_new[:zero_idx] = range(-zero_idx, 0)
+
+        for chunk_n, chunk_path in sorted(self._find_chunks(chunk_numbers=None), key=operator.itemgetter(0)):
+            # noinspection PyUnresolvedReferences
+            ind = self._load_index(chunk_path)
+
+            ofn = ind['frame_number'][:]
+            nfn = fn_new[chunk_n*self._chunksize:(chunk_n*self._chunksize) + self._chunksize]
+            assert len(ofn) == len(nfn)
+
+            new_ind = {'frame_time': ind['frame_time'],
+                       'frame_number': nfn,
+                       '_frame_number_before_reindex': ofn}
+
+            # noinspection PyUnresolvedReferences
+            self._remove_index(chunk_path)
+            self._save_index(chunk_path + '.npz', new_ind)
+
+            self._log.debug('reindexed chunk %d (%s)' % (chunk_n, chunk_path))
+
+            ed_path = chunk_path + '.extra.json'
+            if os.path.exists(ed_path):
+                with open(ed_path, 'r') as f:
+                    ed = json.load(f)
+
+                # noinspection PyBroadException
+                try:
+                    df = pd.DataFrame(ed)
+                    if 'frame_index' not in df.columns:
+                        raise ValueError('can not reindex extra-data on old format stores')
+                    df['_frame_number_before_reindex'] = df['frame_number']
+                    df['frame_number'] = df.apply(lambda r: fn_new[int(r.frame_index)], axis=1)
+                    with open(ed_path, 'w') as f:
+                        df.to_json(f, orient='records')
+                    self._log.debug('reindexed chunk %d metadata (%s)' % (chunk_n, ed_path))
+                except Exception:
+                    self._log.error('could not update chunk extra data to new framenumber', exc_info=True)
+
 
 # noinspection PyUnresolvedReferences,PyAttributeOutsideInit,PyClassHasNoInit
 class _MetadataMixin:
 
     FRAME_MD = ('frame_number', 'frame_time')
 
+    def _save_index(self, path_with_extension, data_dict):
+        _, extension = os.path.splitext(path_with_extension)
+        with open(path_with_extension, 'w') as f:
+            if extension == '.yaml':
+                yaml.safe_dump(data_dict, f)
+            elif extension == '.npz':
+                # noinspection PyTypeChecker
+                np.savez(f, **data_dict)
+            else:
+                raise ValueError('unknown index format: %s' % extension)
+
     def _save_chunk_metadata(self, path_without_extension, extension='.npz'):
         path = path_without_extension + extension
-        if extension == '.yaml':
-            with open(path, 'wt') as f:
-                yaml.safe_dump(self._chunk_md, f)
-        elif extension == '.npz':
-            np.savez(path, **self._chunk_md)
-        else:
-            raise ValueError('unknown index format: %s' % extension)
+        self._save_index(path, self._chunk_md)
 
         # also calculate the filename of the extra file to hold any data
         if self._extra_data_fp is not None:
@@ -433,6 +498,13 @@ class _MetadataMixin:
         else:
             self._extra_data_fp.write(', ')
         self._extra_data_fp.write(txt)
+
+    # noinspection PyMethodMayBeStatic
+    def _remove_index(self, path_without_extension):
+        for extension in ('.npz', '.yaml'):
+            path = path_without_extension + extension
+            if os.path.exists(path):
+                os.unlink(path)
 
     # noinspection PyMethodMayBeStatic
     def _load_index(self, path_without_extension):

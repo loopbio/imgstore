@@ -43,6 +43,18 @@ def get_size(start_path):
 
 
 @pytest.fixture
+def loglevel_info():
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+
+@pytest.fixture
+def loglevel_debug():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+
+
+@pytest.fixture
 def grey_image():
     cimg = cv2.imread(os.path.join(TEST_DATA_DIR, 'graffiti.png'), cv2.IMREAD_GRAYSCALE)
     return cv2.resize(cimg, (1920, 1200))
@@ -404,3 +416,73 @@ def test_videoimgstore_mp4():
         assert img.shape == (SZ, SZ)
         assert _frame_number == i
         assert decode_image(img, nbits=L, imgsize=SZ) == i
+
+
+@pytest.mark.parametrize('chunksize', (2, 3, 10))
+def test_reindex_to_zero(loglevel_debug, request, grey_image, chunksize):
+    tdir = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(tdir))
+
+    fmt = 'mjpeg'
+    kwargs = dict(basedir=tdir,
+                  mode='w',
+                  imgshape=grey_image.shape,
+                  imgdtype=grey_image.dtype,
+                  chunksize=chunksize,
+                  metadata={'timezone': 'Europe/Austria'},
+                  format=fmt)
+
+    d = stores.new_for_format(fmt, **kwargs)
+
+    d.add_image(grey_image, 3, time.time())
+    d.add_extra_data(ofn=3)
+    d.add_image(grey_image, 4, time.time())
+    d.add_extra_data(ofn=4)
+    d.add_image(grey_image, 0, time.time())
+    d.add_image(grey_image, 1, time.time())
+    d.add_image(grey_image, 2, time.time())
+    d.add_image(grey_image, 3, time.time())
+    d.add_image(grey_image, 4, time.time())
+    d.add_extra_data(ofn=42)
+    d.close()
+
+    s = stores.new_for_filename(d.full_path, mode='r')
+    npt.assert_array_equal(s.get_frame_metadata()['frame_number'], [3, 4, 0, 1, 2, 3, 4])
+
+    df = s.get_extra_data()
+    assert len(df) == 3
+    assert sorted(df['ofn'].tolist()) == [3, 4, 42]
+    assert sorted(df['frame_number'].tolist()) == [3, 4, 4]
+
+    s.reindex()
+    s.close()
+
+    j = stores.new_for_filename(s.full_path, mode='r')
+    npt.assert_array_equal(s.get_frame_metadata()['frame_number'], [-2, -1, 0, 1, 2, 3, 4])
+
+
+def test_reindex_impossible(request, grey_image):
+    tdir = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(tdir))
+
+    fmt = 'mjpeg'
+    kwargs = dict(basedir=tdir,
+                  mode='w',
+                  imgshape=grey_image.shape,
+                  imgdtype=grey_image.dtype,
+                  chunksize=3,
+                  metadata={'timezone': 'Europe/Austria'},
+                  format=fmt)
+
+    d = stores.new_for_format(fmt, **kwargs)
+    d.add_image(grey_image, 3, time.time())
+    d.add_image(grey_image, 4, time.time())
+    d.add_image(grey_image, 0, time.time())
+    d.add_image(grey_image, 0, time.time())
+    d.add_image(grey_image, 1, time.time())
+    d.close()
+
+    s = stores.new_for_filename(d.full_path, mode='r')
+    with pytest.raises(ValueError):
+        s.reindex()
+    s.close()
