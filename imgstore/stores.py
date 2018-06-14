@@ -450,14 +450,15 @@ class _MetadataMixin:
 
     def _save_index(self, path_with_extension, data_dict):
         _, extension = os.path.splitext(path_with_extension)
-        with open(path_with_extension, 'w') as f:
-            if extension == '.yaml':
+        if extension == '.yaml':
+            with open(path_with_extension, 'w') as f:
                 yaml.safe_dump(data_dict, f)
-            elif extension == '.npz':
+        elif extension == '.npz':
+            with open(path_with_extension, 'wb') as f:
                 # noinspection PyTypeChecker
                 np.savez(f, **data_dict)
-            else:
-                raise ValueError('unknown index format: %s' % extension)
+        else:
+            raise ValueError('unknown index format: %s' % extension)
 
     def _save_chunk_metadata(self, path_without_extension, extension='.npz'):
         path = path_without_extension + extension
