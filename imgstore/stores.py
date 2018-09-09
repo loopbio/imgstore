@@ -1,5 +1,6 @@
 # coding=utf-8
 from __future__ import print_function, division, absolute_import
+import re
 import os.path
 import itertools
 import operator
@@ -8,6 +9,11 @@ import logging
 import glob
 import uuid
 import string
+import datetime
+
+import pytz
+import tzlocal
+import dateutil.parser
 
 import cv2
 from ruamel import yaml
@@ -131,7 +137,8 @@ class _ImgStore(object):
             self.frame_number = self.frame_min
 
     def _init_read(self):
-        with open(os.path.join(self._basedir, STORE_MD_FILENAME), 'rt') as f:
+        fullpath = os.path.join(self._basedir, STORE_MD_FILENAME)
+        with open(fullpath, 'r') as f:
             allmd = yaml.load(f, Loader=yaml.Loader)
         smd = allmd.pop(STORE_MD_KEY)
 
@@ -160,6 +167,40 @@ class _ImgStore(object):
         self._chunksize = int(smd['chunksize'])
         self._encoding = smd['encoding']
         self._metadata = smd
+
+        # synthesize a created_date from old format stores
+        if 'created_utc' not in smd:
+            dt = tz = None
+            # we don't know the local timezone, so assume it is local
+            if 'timezone' in allmd:
+                # noinspection PyBroadException
+                try:
+                    tz = pytz.timezone(allmd['timezone'])
+                except Exception:
+                    pass
+            if tz is None:
+                tz = tzlocal.get_localzone()
+
+            # first the filename
+            m = re.match(r"""(.*)(20[\d]{6}_\d{6}).*""", os.path.basename(self._basedir))
+            if m:
+                name, datestr = m.groups()
+                # ive always been careful to make the files named with the local time
+                time_tuple = time.strptime(datestr, '%Y%m%d_%H%M%S')
+                _dt = datetime.datetime(*(time_tuple[0:6]))
+                dt = tz.localize(_dt).astimezone(pytz.utc)
+
+            # then the modification time of the file
+            if dt is None:
+                # file modifications are local time
+                ts = os.path.getmtime(fullpath)
+                dt = datetime.datetime.fromtimestamp(ts, tz=tzlocal.get_localzone()).astimezone(pytz.utc)
+
+            self._created_utc = dt
+            self._timezone_local = tz
+        else:
+            self._created_utc = pytz.utc.localize(dateutil.parser.parse(smd['created_utc']))
+            self._timezone_local = pytz.timezone(smd['timezone_local'])
 
         # if encoding is unset, autoconvert is no-op
         self._codec_proc.set_default_code(self._encoding)
@@ -192,6 +233,8 @@ class _ImgStore(object):
                     'class': self.__class__.__name__,
                     'version': self._version,
                     'encoding': encoding,
+                    'created_utc': datetime.datetime.utcnow().isoformat(),
+                    'timezone_local': str(tzlocal.get_localzone()),
                     'uuid': uuid.uuid4().hex}
 
         if metadata is None:
@@ -236,6 +279,10 @@ class _ImgStore(object):
         return self.frame_count
 
     @property
+    def created(self):
+        return self._created_utc, self._timezone_local
+
+    @property
     def uuid(self):
         return self._uuid
 
@@ -273,7 +320,7 @@ class _ImgStore(object):
     def add_extra_data(self, **data):
         pass
 
-    # noinspection PyMethodMayBeStatic
+    # noinspection PyMethodMayBeStaticfull_pat
     def get_extra_data(self):
         return {}
 
