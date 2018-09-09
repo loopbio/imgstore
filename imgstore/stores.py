@@ -10,6 +10,7 @@ import glob
 import uuid
 import string
 import datetime
+import shutil
 
 import pytz
 import tzlocal
@@ -414,6 +415,30 @@ class _ImgStore(object):
     def get_frame_metadata(self):
         return {}
 
+    def empty(self):
+        if self._mode != 'w':
+            raise ValueError('can only empty stores for writing')
+
+        self.close()
+
+        self._tN = self._t0 = time.time()
+
+        self.frame_min = np.nan
+        self.frame_max = np.nan
+        self.frame_number = np.nan
+        self.frame_count = 0
+        self.frame_time = np.nan
+
+        self._chunk_n = 0
+        self._chunk_n_and_chunk_paths = ()
+
+        if self._extra_data_fp is not None:
+            self._extra_data_fp.close()
+            os.unlink(self._extra_data_fn)
+            self._extra_data_fp = self._extra_data_fn = None
+
+        self._frame_n = 0
+
     def reindex(self):
         """ modifies the current imgstore so that all framenumbers before frame_number=0 are negative
 
@@ -778,6 +803,27 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
     @property
     def lossless(self):
         return False
+
+    def empty(self):
+        _ImgStore.empty(self)
+        for _, chunk_path in self._find_chunks(chunk_numbers=None):
+            os.unlink(chunk_path + self._ext)
+            self._remove_index(chunk_path)
+
+    def insert_chunk(self, video_path, frame_numbers, frame_times):
+        assert len(frame_numbers) == len(frame_times)
+        assert video_path.endswith(self._ext)
+
+        self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
+        self._chunk_md['frame_number'] = np.asarray(frame_numbers)
+        self._chunk_md['frame_time'] = np.asarray(frame_times)
+
+        self._save_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
+
+        vid = os.path.join(self._basedir, '%06d%s' % (self._chunk_n, self._ext))
+        shutil.move(video_path, vid)
+
+        self._chunk_n += 1
 
     @property
     def _ext(self):
