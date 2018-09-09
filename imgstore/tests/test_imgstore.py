@@ -6,11 +6,13 @@ import random
 import shutil
 import tempfile
 import time
+import itertools
 
 import cv2
 import pytest
 
 from imgstore import stores
+from imgstore.util import FourCC, ensure_color, ensure_grayscale
 from imgstore.tests import TEST_DATA_DIR
 
 
@@ -31,6 +33,15 @@ def decode_image(img, nbits=16, imgsize=512):
     row = (np.mean(img, axis=0) > 127).astype(np.uint8)
     bstr = ''.join(str(v) for v in row)
     return int(bstr, 2)
+
+
+def new_framecode_video(dest, frame0, nframes):
+    assert dest.endswith('.avi')
+    cap = cv2.VideoWriter(dest, FourCC('M', 'J', 'P', 'G'), 25, (512, 512), isColor=True)
+    for i in range(frame0, frame0+nframes):
+        cap.write(ensure_color(encode_image(i, imgsize=512)))
+    cap.release()
+    return dest
 
 
 def get_size(start_path):
@@ -298,6 +309,48 @@ def test_testencode_decode():
         img = encode_image(num=i, nbits=L, imgsize=SZ)
         v = decode_image(img, nbits=L, imgsize=SZ)
         assert v == i
+
+
+def test_manual_assembly(loglevel_debug, request):
+    tdir = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(tdir))
+
+    a = new_framecode_video(dest=os.path.join(tdir, 'a.avi'),
+                            frame0=0, nframes=10)
+
+    a_fns = list(range(0, 10))  # [0 ... 9]
+
+    b = new_framecode_video(dest=os.path.join(tdir, 'b.avi'),
+                            frame0=57, nframes=20)
+
+    b_fns = list(range(57, 57 + 20))  # [57 ... 76]
+
+    dest = os.path.join(tdir, 'store')
+    store = stores.VideoImgStore(basedir=dest,
+                                 mode='w',
+                                 imgshape=(512, 512, 3),
+                                 imgdtype=np.uint8,
+                                 chunksize=100,
+                                 format='mjpeg')
+    store.empty()
+
+    store.insert_chunk(a, a_fns, 1000.0 * np.asarray(a_fns))
+    store.insert_chunk(b, b_fns, 1000.0 * np.asarray(b_fns))
+    store.close()
+
+    store = stores.new_for_filename(store.full_path)
+
+    fns = list(itertools.chain.from_iterable((a_fns, b_fns)))
+    r = np.random.RandomState(42)
+    r.shuffle(fns)
+
+    for f in fns:
+        img, (frame_number, frame_time) = store.get_image(frame_number=f, exact_only=True)
+        assert frame_number == f
+        assert frame_time == (1000.0 * f)
+        assert decode_image(img[:, :, 0]) == f
+
+    store.close()
 
 
 def test_store_frame_metadata(request):
