@@ -15,6 +15,32 @@ else:
     FourCC = cv2.cv.CV_FOURCC
 
 
+def _cvt_color(img, code, ensure_copy=True):
+    # protect against empty last dimensions
+    _is_color = (img.shape[-1] == 3) & (img.ndim == 3)
+
+    if code == cv2.COLOR_GRAY2BGR:
+        if _is_color:
+            return img.copy() if ensure_copy else img
+        else:
+            return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    elif code == cv2.COLOR_BGR2GRAY:
+        if _is_color:
+            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:
+            return img.copy() if ensure_copy else img
+    else:
+        return ValueError("cvtColor code not understood: %s" % code)
+
+
+def ensure_grayscale(img):
+    return _cvt_color(img, cv2.COLOR_BGR2GRAY, ensure_copy=False)
+
+
+def ensure_color(img):
+    return _cvt_color(img, cv2.COLOR_GRAY2BGR, ensure_copy=False)
+
+
 class ImageCodecProcessor(object):
     """
     Allows converting a number of image encodings (Bayer, YUV, etc)

@@ -31,33 +31,7 @@ try:
 except ImportError:
     DEVNULL = open(os.devnull, 'r+b')
 
-from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC
-
-
-def _cvt_color(img, code, ensure_copy=True):
-    # protect against empty last dimensions
-    _is_color = (img.shape[-1] == 3) & (img.ndim == 3)
-
-    if code == cv2.COLOR_GRAY2BGR:
-        if _is_color:
-            return img.copy() if ensure_copy else img
-        else:
-            return cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    elif code == cv2.COLOR_BGR2GRAY:
-        if _is_color:
-            return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        else:
-            return img.copy() if ensure_copy else img
-    else:
-        return ValueError("cvtColor code not understood: %s" % code)
-
-
-def _ensure_grayscale(img):
-    return _cvt_color(img, cv2.COLOR_BGR2GRAY, ensure_copy=False)
-
-
-def _ensure_color(img):
-    return _cvt_color(img, cv2.COLOR_GRAY2BGR, ensure_copy=False)
+from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color, ensure_grayscale
 
 
 STORE_MD_KEY = '__store'
@@ -695,7 +669,7 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
 
         if self._format in self._cv2_fmts:
             if self._format == 'ppm':
-                img = _ensure_color(img)
+                img = ensure_color(img)
             cv2.imwrite(dest, img)
         elif self._format == 'npy':
             np.save(dest, img)
@@ -825,7 +799,7 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
 
     def _save_image(self, img, frame_number, frame_time):
         # we always write color because its more supported
-        frame = _ensure_color(img)
+        frame = ensure_color(img)
         self._cap.write(frame)
         if not os.path.isfile(self._capfn):
             raise Exception('The opencv backend does not actually have write support')
@@ -851,9 +825,9 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
         _, _img = self._cap.read()
         if self._color:
             # almost certainly no-op as opencv usually returns color frames....
-            img = _ensure_color(_img)
+            img = ensure_color(_img)
         else:
-            img = _ensure_grayscale(_img)
+            img = ensure_grayscale(_img)
 
         return img, (self._chunk_md['frame_number'][idx], self._chunk_md['frame_time'][idx])
 
