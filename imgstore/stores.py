@@ -299,6 +299,10 @@ class _ImgStore(object):
         return self._basedir
 
     @property
+    def full_path(self):
+        return os.path.join(self._basedir, STORE_MD_FILENAME)
+
+    @property
     def image_shape(self):
         # if encoding is specified, we always decode to bgr (color)
         if self._encoding:
@@ -309,10 +313,6 @@ class _ImgStore(object):
     @property
     def duration(self):
         return self._tN - self._t0
-
-    @property
-    def full_path(self):
-        return os.path.join(self._basedir, STORE_MD_FILENAME)
 
     def disable_decoding(self):
         self._decode_image = lambda x: x
