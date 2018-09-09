@@ -485,6 +485,7 @@ class _MetadataMixin:
 
         data['frame_time'] = self.frame_time
         data['frame_number'] = self.frame_number
+        data['frame_index'] = self._frame_n - 1  # we post-increment in add_frame
 
         # noinspection PyBroadException
         try:

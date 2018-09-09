@@ -385,6 +385,7 @@ def test_reindex_to_zero(loglevel_debug, request, grey_image, chunksize):
     df = s.get_extra_data()
     assert len(df) == 3
     assert sorted(df['ofn'].tolist()) == [3, 4, 42]
+    assert sorted(df['frame_index'].tolist()) == [0, 1, 6]
     assert sorted(df['frame_number'].tolist()) == [3, 4, 4]
 
     s.reindex()
@@ -392,6 +393,12 @@ def test_reindex_to_zero(loglevel_debug, request, grey_image, chunksize):
 
     j = stores.new_for_filename(s.full_path, mode='r')
     npt.assert_array_equal(s.get_frame_metadata()['frame_number'], [-2, -1, 0, 1, 2, 3, 4])
+
+    df = j.get_extra_data()
+    assert len(df) == 3
+    assert sorted(df['ofn'].tolist()) == [3, 4, 42]
+    assert sorted(df['frame_index'].tolist()) == [0, 1, 6]
+    assert sorted(df['frame_number'].tolist()) == [-2, -1, 4]
 
 
 def test_reindex_impossible(request, grey_image):
