@@ -68,7 +68,7 @@ def graffiti():
 @pytest.mark.parametrize('fmt', (pytest.mark.skipif(stores.bloscpack is None,
                                                     reason='bloscpack not installed')('bpk'),
                                  'mjpeg',
-                                 'npy', 'tif', 'png', 'ppm', 'pgm', 'pbm', 'bmp', 'jpg'))
+                                 'npy', 'tif', 'png', 'ppm', 'pgm', 'bmp', 'jpg'))
 def test_imgstore(request, grey_image, fmt):
 
     # tdir = tempfile.mkdtemp(dir='/path/to/ssd/') for performance testing
@@ -125,7 +125,7 @@ def test_imgstore(request, grey_image, fmt):
     d.close()
 
 
-@pytest.mark.parametrize('fmt', ('mjpeg',))
+@pytest.mark.parametrize('fmt', ('mjpeg', 'h264/mkv'))
 def test_videoimgstore(request, graffiti, fmt):
 
     tdir = tempfile.mkdtemp()
