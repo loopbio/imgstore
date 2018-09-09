@@ -587,7 +587,7 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
 
     _supported_modes = 'wr'
 
-    _cv2_fmts = {'tif', 'png', 'jpg', 'ppm', 'pgm', 'pbm', 'bmp'}
+    _cv2_fmts = {'tif', 'png', 'jpg', 'ppm', 'pgm', 'bmp'}
     _raw_fmts = {'npy', 'bpk'}
 
     def __init__(self, **kwargs):
@@ -629,6 +629,8 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
         dest = os.path.join(self._chunk_cdir, '%06d.%s' % (self._frame_n % self._chunksize, self._format))
 
         if self._format in self._cv2_fmts:
+            if self._format == 'ppm':
+                img = _ensure_color(img)
             cv2.imwrite(dest, img)
         elif self._format == 'npy':
             np.save(dest, img)
