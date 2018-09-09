@@ -232,6 +232,9 @@ class _ImgStore(object):
     def _find_chunks(self, chunk_numbers):
         raise NotImplementedError
 
+    def __len__(self):
+        return self.frame_count
+
     @property
     def uuid(self):
         return self._uuid
@@ -283,8 +286,8 @@ class _ImgStore(object):
         self.frame_time = frame_time
 
         if self._frame_n == 0:
-            self._t0 = time.time()
-        self._tN = time.time()
+            self._t0 = frame_time
+        self._tN = frame_time
 
         self._frame_n += 1
         if (self._frame_n % self._chunksize) == 0:
@@ -538,6 +541,8 @@ class _MetadataMixin:
                 continue
 
             self.frame_count += len(idx['frame_number'])
+            self._t0 = min(self._t0, np.min(idx['frame_time']))
+            self._tN = max(self._tN, np.max(idx['frame_time']))
 
             for frame_range in _extract_ranges(idx['frame_number']):
                 self._index[frame_range] = chunk_n
