@@ -320,6 +320,10 @@ class _ImgStore(object):
     def add_extra_data(self, **data):
         pass
 
+    @property
+    def has_extra_data(self):
+        return False
+
     # noinspection PyMethodMayBeStaticfull_pat
     def get_extra_data(self):
         return {}
@@ -611,6 +615,14 @@ class _MetadataMixin:
             for k in _MetadataMixin.FRAME_MD:
                 dat[k].extend(idx[k])
         return dat
+
+    @property
+    def has_extra_data(self):
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+            path = chunk_path + '.extra.json'
+            if os.path.exists(path):
+                return True
+        return False
 
     def get_extra_data(self):
         dfs = []

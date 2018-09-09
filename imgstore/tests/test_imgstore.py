@@ -223,7 +223,7 @@ def test_imgstore_outoforder(request,  fmt, imgtype):
     d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME))
 
     assert d.image_shape == orig_img.shape
-
+    assert d.has_extra_data
     assert d.frame_min == 0
     assert d.frame_max == F
 
