@@ -42,6 +42,23 @@ def get_size(start_path):
     return total_size
 
 
+def new_framecode_store(dest, frame0, nframes, format='png'):
+    kwargs = dict(basedir=dest,
+                  mode='w',
+                  imgshape=(512, 512, 3),
+                  imgdtype=np.uint8,
+                  chunksize=7,
+                  format=format)
+
+    d = stores.new_for_format(format, **kwargs)
+    for i in range(frame0, frame0+nframes):
+        frame = ensure_color(encode_image(i, imgsize=512))
+        d.add_image(frame, i, time.time())
+    d.close()
+
+    return d, dest
+
+
 @pytest.fixture
 def loglevel_info():
     import logging
@@ -246,6 +263,31 @@ def test_imgstore_outoforder(request,  fmt, imgtype):
         sz_bytes / (1024 * 1024.),
         cmp_ratio,
         '' if d.lossless else 'LOSSY '))
+
+
+def test_create_and_times(loglevel_debug, request):
+    import pytz
+
+    tdir = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(tdir))
+
+    # check we always get a UTC timesone
+    # does not have created_utc in metadata
+    d = stores.new_for_filename(os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml'))
+    c_utc, tz = d.created
+    assert c_utc.tzinfo is not None
+    assert c_utc.tzinfo == pytz.utc
+
+    store, _ = new_framecode_store(dest=tdir, frame0=0, nframes=1)
+    assert store.uuid is not None
+
+    store2 = stores.new_for_filename(store.full_path)
+    assert store2.uuid == store.uuid
+    assert store2.created == store.created
+
+    c_utc, tz = store2.created
+    assert c_utc.tzinfo is not None
+    assert c_utc.tzinfo == pytz.utc
 
 
 def test_testencode_decode():
