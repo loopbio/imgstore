@@ -125,74 +125,7 @@ def test_imgstore(request, grey_image, fmt):
     d.close()
 
 
-@pytest.mark.parametrize('fmt', ('mjpeg', 'h264/mkv'))
-def test_videoimgstore(request, graffiti, fmt):
-
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
-
-    orig_img = graffiti
-
-    kwargs = dict(basedir=tdir,
-                  mode='w',
-                  imgshape=orig_img.shape,
-                  imgdtype=orig_img.dtype,
-                  chunksize=50,
-                  format=fmt)
-
-    d = stores.new_for_format(fmt, **kwargs)
-
-    F = 100
-
-    t0 = time.time()
-
-    frame_times = {}
-    frame_extra = {}
-    for i in range(F):
-        t = time.time()
-        d.add_image(orig_img.copy(), i, t)
-        frame_times[i] = t
-
-        d.add_extra_data(N=i)
-        frame_extra[i] = dict(N=i)
-
-    d.close()
-    dt = time.time() - t0
-
-    sz_bytes = get_size(tdir)
-    cmp_ratio = abs(100 - (100.0 * ((F * float(orig_img.nbytes)) / sz_bytes)))
-
-    print("\n%s %s %dx%dpx@%s frames took %.1fs @ %.1f fps (size: %.1fMB, %.1f%% %scompression)" %
-          (fmt, F,
-           orig_img.shape[1], orig_img.shape[0], orig_img.dtype,
-           dt, F/dt, sz_bytes/(1024*1024.),
-           cmp_ratio,
-           '' if d.lossless else 'LOSSY '))
-
-    d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME),
-                                basedir=tdir, mode='r')
-
-    for f in range(F):
-        img, (frame_number, frame_time) = d.get_image(frame_number=f)
-        assert f == frame_number
-        assert frame_times[f] == frame_time
-        assert img.shape == orig_img.shape
-
-    md = d.get_frame_metadata()
-    npt.assert_array_equal(list(frame_times.values()), md['frame_time'])
-    npt.assert_array_equal(list(frame_times.keys()), md['frame_number'])
-
-    df = d.get_extra_data()
-    assert len(df) == len(frame_extra)
-    df.set_index('frame_number', inplace=True, verify_integrity=True)
-    for _i, _v in frame_extra.items():
-        _row = df.loc[_i]
-        assert _row['N'] == _i
-
-    d.close()
-
-
-@pytest.mark.parametrize('fmt', ('mjpeg', 'npy'))
+@pytest.mark.parametrize('fmt', ('mjpeg', 'npy', 'h264/mkv'))
 @pytest.mark.parametrize('imgtype', ('b&w', 'color'))
 def test_imgstore_outoforder(request,  fmt, imgtype):
     SZ = 512
