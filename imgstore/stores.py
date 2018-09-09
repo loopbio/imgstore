@@ -694,7 +694,9 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
 
     _supported_modes = 'wr'
 
-    lossless = False  # fixme. depends on codec
+    _cv2_fmts = {'mjpeg': FourCC('M', 'J', 'P', 'G'),
+                 'mjpeg/avi': FourCC('M', 'J', 'P', 'G'),
+                 'h264/mkv': FourCC('H', '2', '6', '4')}
 
     def __init__(self, **kwargs):
 
@@ -702,6 +704,10 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
         self._capfn = None
 
         fmt = kwargs.pop('format', None)
+        # backwards compat
+        if fmt == 'mjpeg':
+            fmt = 'mjpeg/avi'
+
         # keep compat with VideoImgStoreFFMPEG
         kwargs.pop('seek', None)
 
@@ -711,14 +717,16 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             if 'chunksize' not in kwargs:
                 kwargs['chunksize'] = 500
 
-            if fmt != 'mjpeg':
-                raise ValueError('only mjpeg supported')
+            try:
+                self._codec = self._cv2_fmts[fmt]
+            except KeyError:
+                raise ValueError('only %r supported', (self._cv2_fmts.keys(),))
 
-            self._codec = FourCC('M', 'J', 'P', 'G')
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
 
             metadata = kwargs.get('metadata', {})
-            metadata[STORE_MD_KEY] = {'format': 'mjpeg'}
+            metadata[STORE_MD_KEY] = {'format': fmt,
+                                      'extension': '.%s' % fmt.split('/')[1]}
             kwargs['metadata'] = metadata
             kwargs['encoding'] = kwargs.pop('encoding', None)
 
@@ -729,10 +737,20 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
 
     @property
+    def lossless(self):
+        return False
+
+    @property
     def _ext(self):
-        if self._metadata['format'] == 'mjpeg':
-            return '.avi'
-        return '.mp4'
+        # forward compatibility
+        try:
+            return self._metadata['extension']
+        except KeyError:
+            # backward compatibility with old mjpeg stores
+            if self._metadata['format'] == 'mjpeg':
+                return '.avi'
+            # backwards compatibility with old bview/motif stores
+            return '.mp4'
 
     def _find_chunks(self, chunk_numbers):
         if chunk_numbers is None:
@@ -793,11 +811,11 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
 
     @classmethod
     def supported_formats(cls):
-        return ['mjpeg']
+        return cls._cv2_fmts.keys()
 
     @classmethod
     def supports_format(cls, fmt):
-        return fmt == 'mjpeg'
+        return fmt in cls._cv2_fmts
 
 
 def new_for_filename(path, **kwargs):
