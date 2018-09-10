@@ -95,6 +95,8 @@ class _ImgStore(object):
             # e.g. (3,9) -> 5
             # means frames 3-9 are contained in chunk 5
             self._index = {}
+            # for lookup by global index we also maintain a list of the chunk lengths
+            self._index_chunklens = []  # [(chunk_n, chunk_len)]
             # the chunk index is a list of framenumbers, the index of the
             # framenumber is the position in the chunk
             self._chunk_index = []
@@ -107,8 +109,13 @@ class _ImgStore(object):
             self._build_index(self._chunk_n_and_chunk_paths)
 
             # reset to the start of the file and load the first chunk
-            self._frame_idx = -1
             self._load_chunk(0)
+            assert self._chunk_current_frame_idx == -1
+            assert self._chunk_n == 0
+
+            # note: frame_idx always refers to the frame_idx within the chunk
+            # whereas frame_index refers to the global frame_index from (0, frame_count]
+
             self.frame_number = self.frame_min
 
     def _init_read(self):
@@ -232,22 +239,22 @@ class _ImgStore(object):
 
         self._save_chunk(None, self._chunk_n)
 
-    def _save_image(self, img, frame_number, frame_time):
+    def _save_image(self, img, frame_number, frame_time):  # pragma: no cover
         raise NotImplementedError
 
-    def _save_chunk(self, old, new):
+    def _save_chunk(self, old, new):  # pragma: no cover
         raise NotImplementedError
 
-    def _load_image(self, idx):
+    def _load_image(self, idx):  # pragma: no cover
         raise NotImplementedError
 
-    def _load_chunk(self, n):
+    def _load_chunk(self, n):  # pragma: no cover
         raise NotImplementedError
 
-    def _build_index(self, chunk_n_and_chunk_paths):
+    def _build_index(self, chunk_n_and_chunk_paths):  # pragma: no cover
         raise NotImplementedError
 
-    def _find_chunks(self, chunk_numbers):
+    def _find_chunks(self, chunk_numbers):  # pragma: no cover
         raise NotImplementedError
 
     def __len__(self):
@@ -324,19 +331,16 @@ class _ImgStore(object):
 
         self.frame_count = self._frame_n
 
-    def _get_next_framenumber_and_idx(self):
+    def _get_next_framenumber_and_chunk_frame_idx(self):
         if self.frame_number == self.frame_max:
             raise EOFError
 
-        idx = self._frame_idx + 1
+        idx = self._chunk_current_frame_idx + 1
         try:
             frame_number = self._chunk_index[idx]
         except IndexError:
             # open the next chunk
-            chunk_n = self._chunk_n + 1
-            self._frame_idx = -1
-            self._load_chunk(chunk_n)
-            self._chunk_n = chunk_n
+            self._load_chunk(self._chunk_n + 1)
             # first frame is start of chunk
             idx = 0
             frame_number = self._chunk_index[idx]
@@ -344,15 +348,53 @@ class _ImgStore(object):
         return frame_number, idx
 
     def get_next_framenumber(self):
-        return self._get_next_framenumber_and_idx()[0]
+        return self._get_next_framenumber_and_chunk_frame_idx()[0]
 
     def get_next_image(self):
-        frame_number, idx = self._get_next_framenumber_and_idx()
-        return self.get_image(frame_number, exact_only=True, frame_idx=idx)
+        frame_number, idx = self._get_next_framenumber_and_chunk_frame_idx()
+        return self._get_image_by_frame_number(frame_number, exact_only=True, frame_idx=idx)
 
-    def get_image(self, frame_number, exact_only=True, frame_idx=None):
+    def _get_image_by_frame_index(self, frame_index):
+        """
+        return the frame at the following index in the store
+        """
+        self._log.debug('seek by frame_index %s' % frame_index)
+
+        # go through the global index and find where our index is
+        chunk_n = frame_idx = -1
+
+        _chunk_range = xrange(0, -2, -1)
+        for _chunk_n, _chunk_len in self._index_chunklens:
+            _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
+            if frame_index in _chunk_range:
+                chunk_n = _chunk_n
+                # make chunk relative
+                frame_idx = frame_index - _chunk_range[0]
+                break
+
+        if chunk_n == -1:
+            raise ValueError('frame_index %s not found in index' % frame_idx)
+
+        # reset to start of chunk for load_image
+        self._load_chunk(chunk_n)
+
+        self._log.debug('seek found in chunk %d attempt read chunk index %d' % (self._chunk_n, frame_idx))
+
+        # ensure the read works before setting frame_number
+        _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
+        img = self._decode_image(_img)
+
+        self._chunk_current_frame_idx = frame_idx
+        self.frame_number = _frame_number
+
+        return img, (_frame_number, _frame_timestamp)
+
+    def _get_image_by_frame_number(self, frame_number, exact_only, frame_idx):
         # there is a high likelihood the current chunk holds the next frame
         # so look there first
+
+        self._log.debug('seek by frame_number %s (exact: %s) frame_idx %s' % (frame_number, exact_only, frame_idx))
+
         if frame_idx is None:
             try:
                 frame_idx = self._chunk_index.index(frame_number)
@@ -390,22 +432,36 @@ class _ImgStore(object):
                     frame_number = fns[_fn_index]
                     self._log.debug("closest frame to %s is %s (chunk %s)" % (orig_frame_number, frame_number, chunk_n))
 
-            self._frame_idx = -1
             self._load_chunk(chunk_n)
-            self._chunk_n = chunk_n
             try:
                 frame_idx = self._chunk_index.index(frame_number)
             except ValueError:
                 raise ValueError('%s %s not found in chunk %s' % ('frame_number', frame_number, chunk_n))
 
+        self._log.debug('seek found in chunk %d attempt read chunk index %d' % (self._chunk_n, frame_idx))
+
         # ensure the read works before setting frame_number
         _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
         img = self._decode_image(_img)
 
-        self._frame_idx = frame_idx
-        self.frame_number = frame_number
+        self._chunk_current_frame_idx = frame_idx
+        self.frame_number = _frame_number
 
         return img, (_frame_number, _frame_timestamp)
+
+    def get_image(self, frame_number, exact_only=True, frame_index=None):
+        """
+        seek to the supplied frame_number or frame_idx. If frame_index is supplied get that image,
+        otherwise get the image corresponding to frame_number
+
+        :param frame_number:  (frame_min, frame_max)
+        :param exact_only: If False return the nearest frame
+        :param frame_index: frame_index (0, frame_count]
+        """
+        if frame_index is not None:
+            return self._get_image_by_frame_index(frame_index)
+        else:
+            return self._get_image_by_frame_number(frame_number, exact_only=exact_only, frame_idx=None)
 
     def close(self):
         if self._mode in 'wa':
@@ -578,8 +634,7 @@ class _MetadataMixin:
 
     def _build_index(self, chunk_n_and_chunk_paths):
         t0 = time.time()
-        for chunk_n, chunk_path in chunk_n_and_chunk_paths:
-
+        for chunk_n, chunk_path in sorted(chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
             try:
                 idx = self._load_index(chunk_path)
             except IOError:
@@ -590,12 +645,21 @@ class _MetadataMixin:
                 # empty chunk
                 continue
 
-            self.frame_count += len(idx['frame_number'])
+            chunk_len = len(idx['frame_number'])
+            self.frame_count += chunk_len
             self._t0 = min(self._t0, np.min(idx['frame_time']))
             self._tN = max(self._tN, np.max(idx['frame_time']))
 
             for frame_range in _extract_ranges(idx['frame_number']):
                 self._index[frame_range] = chunk_n
+                self._log.debug('index:framenumbers chunk: %d holds:%r' % (chunk_n, frame_range))
+            self._index_chunklens.append((chunk_n, chunk_len))
+
+        # debugging only
+        _chunk_range = xrange(0, -2, -1)
+        for _chunk_n, _chunk_len in self._index_chunklens:
+            _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
+            self._log.debug('index:index chunk: %d holds:%r' % (_chunk_n, list(_chunk_range)))
 
         self._log.debug('built index in %fs' % (time.time() - t0))
 
@@ -741,6 +805,9 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
             self._load_chunk_metadata(os.path.join(self._chunk_cdir, 'index'))
             self._chunk_index = self._chunk_md['frame_number']
 
+        self._chunk_n = n
+        self._chunk_current_frame_idx = -1  # not used in DirectoryImgStore, but maintain compat
+
     @classmethod
     def supported_formats(cls):
         return list(cls._cv2_fmts) + list(cls._raw_fmts)
@@ -773,7 +840,7 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             fmt = 'mjpeg/avi'
 
         # keep compat with VideoImgStoreFFMPEG
-        kwargs.pop('seek', None)
+        seek = kwargs.pop('seek', None)
 
         if kwargs['mode'] == 'w':
             imgshape = kwargs['imgshape']
@@ -795,6 +862,10 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             kwargs['encoding'] = kwargs.pop('encoding', None)
 
         _ImgStore.__init__(self, **kwargs)
+
+        self._supports_seeking = seek
+        if self._supports_seeking:
+            self._log.info('seeking is enabled on store')
 
         if self._mode == 'r':
             imgshape = self._metadata['imgshape']
@@ -864,9 +935,18 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % new))
 
     def _load_image(self, idx):
-        # only seek if we have to, otherwise take the fast path
-        if (idx - self._frame_idx) != 1:
-            self._cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), idx)
+        if self._supports_seeking:
+            # only seek if we have to, otherwise take the fast path
+            if (idx - self._chunk_current_frame_idx) != 1:
+                self._cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), idx)
+        else:
+            if idx < self._chunk_current_frame_idx:
+                self._load_chunk(self._chunk_n, _force=True)
+
+            i = self._chunk_current_frame_idx + 1
+            while i < idx:
+                _, img = self._cap.read()
+                i += 1
 
         _, _img = self._cap.read()
         if self._color:
@@ -877,9 +957,9 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
 
         return img, (self._chunk_md['frame_number'][idx], self._chunk_md['frame_time'][idx])
 
-    def _load_chunk(self, n):
+    def _load_chunk(self, n, _force=False):
         fn = os.path.join(self._basedir, '%06d%s' % (n, self._ext))
-        if fn != self._capfn:
+        if _force or (fn != self._capfn):
             if self._cap is not None:
                 self._cap.release()
 
@@ -887,12 +967,15 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             self._capfn = fn
             # noinspection PyArgumentList
             self._cap = cv2.VideoCapture(self._capfn)
+            self._chunk_current_frame_idx = -1
 
             if not self._cap.isOpened():
                 raise Exception("OpenCV unable to open %s" % fn)
 
             self._load_chunk_metadata(os.path.join(self._basedir, '%06d' % n))
             self._chunk_index = self._chunk_md['frame_number']
+
+        self._chunk_n = n
 
     @classmethod
     def supported_formats(cls):
