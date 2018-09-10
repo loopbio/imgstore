@@ -451,7 +451,7 @@ class _ImgStore(object):
 
     def get_image(self, frame_number, exact_only=True, frame_index=None):
         """
-        seek to the supplied frame_number or frame_idx. If frame_index is supplied get that image,
+        seek to the supplied frame_number or frame_index. If frame_index is supplied get that image,
         otherwise get the image corresponding to frame_number
 
         :param frame_number:  (frame_min, frame_max)
