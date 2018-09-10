@@ -122,11 +122,10 @@ class _ImgStore(object):
             self._load_chunk(0)
             assert self._chunk_current_frame_idx == -1
             assert self._chunk_n == 0
+            self.frame_number = np.nan  # we haven't read any frames yet
 
             # note: frame_idx always refers to the frame_idx within the chunk
             # whereas frame_index refers to the global frame_index from (0, frame_count]
-
-            self.frame_number = self.frame_min
 
     def _init_read(self):
         fullpath = os.path.join(self._basedir, STORE_MD_FILENAME)
