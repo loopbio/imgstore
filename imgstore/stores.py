@@ -42,6 +42,12 @@ STORE_MD_FILENAME = 'metadata.yaml'
 _VERBOSE_DEBUG_CHUNKS = False
 
 
+def _extract_store_metadata(full_path):
+    with open(full_path, 'r') as f:
+        allmd = yaml.load(f, Loader=yaml.Loader)
+    return allmd.pop(STORE_MD_KEY)
+
+
 class _ImgStore(object):
 
     _version = 2
@@ -298,6 +304,28 @@ class _ImgStore(object):
     @property
     def duration(self):
         return self._tN - self._t0
+
+    @staticmethod
+    def _extract_only_frame(basedir, chunk_n, frame_n, smd):
+        raise NotImplementedError
+
+    @classmethod
+    def extract_only_frame(cls, full_path, frame_index, _smd=None):
+        if _smd is None:
+            smd = _extract_store_metadata(full_path)
+        else:
+            smd = _smd
+
+        chunksize = int(smd['chunksize'])
+
+        # go directly to the chunk
+        chunk_n = frame_index // chunksize
+        frame_n = frame_index % chunksize
+
+        return cls._extract_only_frame(basedir=os.path.dirname(full_path),
+                                       chunk_n=chunk_n,
+                                       frame_n=frame_n,
+                                       smd=smd)
 
     def disable_decoding(self):
         self._decode_image = lambda x: x
@@ -557,6 +585,10 @@ class _ImgStore(object):
                 except Exception:
                     self._log.error('could not update chunk extra data to new framenumber', exc_info=True)
 
+    @staticmethod
+    def _extract_only_frame(basedir, chunk_n, frame_n, smd):
+        return None
+
 
 # noinspection PyUnresolvedReferences,PyAttributeOutsideInit,PyClassHasNoInit
 class _MetadataMixin:
@@ -616,15 +648,15 @@ class _MetadataMixin:
             self._extra_data_fp.write(', ')
         self._extra_data_fp.write(txt)
 
-    # noinspection PyMethodMayBeStatic
-    def _remove_index(self, path_without_extension):
+    @staticmethod
+    def _remove_index(path_without_extension):
         for extension in ('.npz', '.yaml'):
             path = path_without_extension + extension
             if os.path.exists(path):
                 os.unlink(path)
 
-    # noinspection PyMethodMayBeStatic
-    def _load_index(self, path_without_extension):
+    @staticmethod
+    def _load_index(path_without_extension):
         for extension in ('.npz', '.yaml'):
             path = path_without_extension + extension
             if os.path.exists(path):
@@ -789,19 +821,24 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
         return list(zip(chunk_numbers, tuple(os.path.join(self._basedir, '%06d' % int(n), 'index')
                                              for n in chunk_numbers)))
 
-    def _load_image(self, idx):
-        path = os.path.join(self._chunk_cdir, '%06d.%s' % (idx, self._format))
-        if self._format in self._cv2_fmts:
-            flags = cv2.IMREAD_COLOR if self._color else cv2.IMREAD_GRAYSCALE
+    @staticmethod
+    def _open_image(path, format, color):
+        if format in DirectoryImgStore._cv2_fmts:
+            flags = cv2.IMREAD_COLOR if color else cv2.IMREAD_GRAYSCALE
             img = cv2.imread(path, flags)
-        elif self._format == 'npy':
+        elif format == 'npy':
             img = np.load(path)
-        elif self._format == 'bpk':
+        elif format == 'bpk':
             with open(path, 'rb') as reader:
                 img = bloscpack.numpy_io.unpack_ndarray(bloscpack.file_io.CompressedFPSource(reader))
         else:
             # Won't get here unless we relax checks in constructor, but better safe
-            raise ValueError('unknown format %s' % self._format)
+            raise ValueError('unknown format %s' % format)
+        return img
+
+    def _load_image(self, idx):
+        path = os.path.join(self._chunk_cdir, '%06d.%s' % (idx, self._format))
+        img = self._open_image(path, self._format, self._color)
         return img, (self._chunk_md['frame_number'][idx], self._chunk_md['frame_time'][idx])
 
     def _load_chunk(self, n):
@@ -814,6 +851,17 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
 
         self._chunk_n = n
         self._chunk_current_frame_idx = -1  # not used in DirectoryImgStore, but maintain compat
+
+    @staticmethod
+    def _extract_only_frame(basedir, chunk_n, frame_n, smd):
+        fmt = smd['format']
+        cdir = os.path.join(basedir, '%06d' % chunk_n)
+        path = os.path.join(cdir, '%06d.%s' % (frame_n, fmt))
+
+        imgshape = tuple(smd['imgshape'])
+        color = (imgshape[-1] == 3) & (len(imgshape) == 3)
+
+        return DirectoryImgStore._open_image(path, fmt, color)
 
     @classmethod
     def supported_formats(cls):
@@ -995,6 +1043,21 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
     def supports_format(cls, fmt):
         return fmt in cls._cv2_fmts
 
+    @staticmethod
+    def _extract_only_frame(basedir, chunk_n, frame_n, smd):
+        capfn = os.path.join(basedir, '%06d.avi' % chunk_n)
+        cap = cv2.VideoCapture(capfn)
+
+        log = logging.getLogger('loopb.imgstore')
+        log.debug('opending %s chunk %d frame_idx %d' % (capfn, chunk_n, frame_n))
+
+        try:
+            cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), frame_n)
+            _, img = cap.read()
+            return img
+        finally:
+            cap.release()
+
 
 def new_for_filename(path, **kwargs):
     filename = os.path.basename(path)
@@ -1028,6 +1091,22 @@ def new_for_format(fmt, **kwargs):
             kwargs['format'] = fmt
             return cls(**kwargs)
     raise ValueError('store class not found which supports format %s' % fmt)
+
+
+def extract_only_frame(path, frame_index):
+    smd = _extract_store_metadata(path)
+    clsname = smd['class']
+
+    if clsname == 'VideoImgStoreFFMPEG':
+        clsname = 'VideoImgStore'
+
+    try:
+        cls = {DirectoryImgStore.__name__: DirectoryImgStore,
+               VideoImgStore.__name__: VideoImgStore}[clsname]
+    except KeyError:
+        raise ValueError('store class %s not supported' % clsname)
+
+    return cls.extract_only_frame(full_path=path, frame_index=frame_index, _smd=smd)
 
 
 def get_supported_formats():
