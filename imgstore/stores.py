@@ -1081,16 +1081,21 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
 
 
 def new_for_filename(path, **kwargs):
-    filename = os.path.basename(path)
-    if filename != STORE_MD_FILENAME:
-        raise ValueError('should be a path to a store %s file' % STORE_MD_FILENAME)
+    if path.endswith(STORE_MD_FILENAME) and (os.path.basename(path) == STORE_MD_FILENAME):
+        basedir = os.path.dirname(path)
+        fullpath = path
+    elif os.path.isdir(path) and os.path.exists(os.path.join(path, STORE_MD_FILENAME)):
+        basedir = path
+        fullpath = os.path.join(path, STORE_MD_FILENAME)
+    else:
+        raise ValueError('should be a path to a store %s file or a directory containing one' % STORE_MD_FILENAME)
 
     if 'mode' not in kwargs:
         kwargs['mode'] = 'r'
     if 'basedir' not in kwargs:
-        kwargs['basedir'] = os.path.dirname(path)
+        kwargs['basedir'] = basedir
 
-    with open(path, 'rt') as f:
+    with open(fullpath, 'rt') as f:
         clsname = yaml.load(f, Loader=yaml.Loader)[STORE_MD_KEY]['class']
 
     # retain compatibility with internal loopbio stores
@@ -1107,6 +1112,8 @@ def new_for_filename(path, **kwargs):
 
 
 def new_for_format(fmt, **kwargs):
+    if 'mode' not in kwargs:
+        kwargs['mode'] = 'w'
     for cls in (DirectoryImgStore, VideoImgStore):
         if cls.supports_format(fmt):
             kwargs['format'] = fmt
