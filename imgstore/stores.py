@@ -881,7 +881,7 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
             os.unlink(chunk_path + self._ext)
             self._remove_index(chunk_path)
 
-    def insert_chunk(self, video_path, frame_numbers, frame_times):
+    def insert_chunk(self, video_path, frame_numbers, frame_times, move=True):
         assert len(frame_numbers) == len(frame_times)
         assert video_path.endswith(self._ext)
 
@@ -892,7 +892,10 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
         self._save_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
 
         vid = os.path.join(self._basedir, '%06d%s' % (self._chunk_n, self._ext))
-        shutil.move(video_path, vid)
+        if move:
+            shutil.move(video_path, vid)
+        else:
+            shutil.copy(video_path, vid)
 
         self._chunk_n += 1
 
