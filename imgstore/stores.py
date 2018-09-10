@@ -79,6 +79,8 @@ class _ImgStore(object):
 
         self._tN = self._t0 = time.time()
 
+        self._created_utc = self._timezone_local = None
+
         self.frame_min = np.nan
         self.frame_max = np.nan
         self.frame_number = np.nan
@@ -160,6 +162,8 @@ class _ImgStore(object):
 
         # synthesize a created_date from old format stores
         if 'created_utc' not in smd:
+            self._log.info('old store detected. synthesizing created datetime / timezone')
+
             dt = tz = None
             # we don't know the local timezone, so assume it is local
             if 'timezone' in allmd:
@@ -189,7 +193,15 @@ class _ImgStore(object):
             self._created_utc = dt
             self._timezone_local = tz
         else:
-            self._created_utc = pytz.utc.localize(dateutil.parser.parse(smd['created_utc']))
+            # ensure that created_utc always has the pytz.utc timezone object because fuck you python
+            # and fuck you dateutil for having different UTC tz objects
+            # https://github.com/dateutil/dateutil/issues/131
+            _dt = dateutil.parser.parse(smd['created_utc'])
+            self._log.debug('parsed created_utc: %s (from %r)' % (_dt.isoformat(), _dt))
+            try:
+                self._created_utc = _dt.astimezone(pytz.utc)  # aware object can be in any timezone
+            except ValueError:  # naive
+                self._created_utc = _dt.replace(tzinfo=pytz.utc)  # d must be in UTC
             self._timezone_local = pytz.timezone(smd['timezone_local'])
 
         # if encoding is unset, autoconvert is no-op
@@ -217,15 +229,21 @@ class _ImgStore(object):
         self._imgdtype = imgdtype
         self._chunksize = chunksize
 
+        self._uuid = uuid.uuid4().hex
+        # because fuck you python that utcnow is naieve. kind of fixed in python >3.2
+        self._created_utc = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+        self._timezone_local = tzlocal.get_localzone()
+
         store_md = {'imgshape': imgshape,
                     'imgdtype': self._imgdtype,
                     'chunksize': chunksize,
                     'class': self.__class__.__name__,
                     'version': self._version,
                     'encoding': encoding,
-                    'created_utc': datetime.datetime.utcnow().isoformat(),
-                    'timezone_local': str(tzlocal.get_localzone()),
-                    'uuid': uuid.uuid4().hex}
+                    # actually write the string as naieve because we have guarenteed it is UTC
+                    'created_utc': self._created_utc.replace(tzinfo=None).isoformat(),
+                    'timezone_local': str(self._timezone_local),
+                    'uuid': self._uuid}
 
         if metadata is None:
             metadata[STORE_MD_KEY] = store_md
