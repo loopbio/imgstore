@@ -521,3 +521,92 @@ def test_reindex_impossible(request, grey_image):
     with pytest.raises(ValueError):
         s.reindex()
     s.close()
+
+
+@pytest.mark.parametrize("seek", [True, False])
+@pytest.mark.parametrize("chunksize", [7, 20, 100])
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'h264/mkv'])
+def test_seek_types(loglevel_debug, request, chunksize, fmt, seek):
+    tdir = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(tdir))
+
+    def _decode_image(_img):
+        return decode_image(_img[:, :, 0], imgsize=512)
+
+    kwargs = dict(basedir=tdir,
+                  mode='w',
+                  imgshape=(512, 512, 3),
+                  imgdtype=np.uint8,
+                  chunksize=chunksize,
+                  format=fmt)
+
+    d = stores.new_for_format(fmt, **kwargs)
+
+    skips = range(2030, 2070)
+    for i in range(2000, 2100):
+        if i in skips:
+            continue
+        d.add_image(ensure_color(encode_image(i, imgsize=512)), frame_number=i, frame_time=time.time())
+    d.close()
+
+    d = stores.new_for_filename(d.full_path, seek=seek)
+    assert len(d) == (100 - len(skips))
+    assert d.frame_min == 2000
+    assert d.frame_max == 2099
+
+    # check seeking works
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=2000, exact_only=True)
+    assert frame_number == 2000
+    assert _decode_image(frame) == 2000
+
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=2001, exact_only=True)
+    assert frame_number == 2001
+    assert _decode_image(frame) == 2001
+
+    # read next frame
+    frame, (frame_number, frame_timestamp) = d.get_next_image()
+    assert frame_number == 2002
+    assert _decode_image(frame) == 2002
+
+    # seek missing frame
+    with pytest.raises(ValueError):
+        frame, (frame_number, frame_timestamp) = d.get_image(frame_number=skips[0], exact_only=True)
+
+    # check seeking works by frame_index
+    for i in range(10, 15):
+        frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True, frame_index=i)
+        assert frame_number == 2000 + i
+        assert _decode_image(frame) == 2000 + i
+
+    # check seeking works by frame index when non monotonically increasing
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True, frame_index=29)
+    assert frame_number == 2029
+    assert _decode_image(frame) == 2029
+
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True, frame_index=30)
+    assert frame_number == 2070
+    assert _decode_image(frame) == 2070
+
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True, frame_index=31)
+    assert frame_number == 2071
+    assert _decode_image(frame) == 2071
+
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True, frame_index=0)
+    assert frame_number == 2000
+    assert _decode_image(frame) == 2000
+
+    frame_count = 100 - len(skips)
+    assert d.frame_count == frame_count
+
+    # last frame
+    frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True,
+                                                         frame_index=frame_count - 1)
+    assert frame_number == 2099
+    assert _decode_image(frame) == 2099
+
+    with pytest.raises(EOFError):
+        frame, (frame_number, frame_timestamp) = d.get_next_image()
+
+    with pytest.raises(ValueError):
+        frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True,
+                                                             frame_index=frame_count)
