@@ -39,6 +39,7 @@ STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
 
 
+_VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
 
 
@@ -382,6 +383,8 @@ class _ImgStore(object):
 
     def get_next_image(self):
         frame_number, idx = self._get_next_framenumber_and_chunk_frame_idx()
+        if _VERBOSE_DEBUG_GETS:
+            self._log.debug('get_next_image frame_number: %s idx %s' % (frame_number, idx))
         return self._get_image_by_frame_number(frame_number, exact_only=True, frame_idx=idx)
 
     def _get_image_by_frame_index(self, frame_index):
@@ -491,6 +494,8 @@ class _ImgStore(object):
         :param exact_only: If False return the nearest frame
         :param frame_index: frame_index (0, frame_count]
         """
+        if _VERBOSE_DEBUG_GETS:
+            self._log.debug('get_image %s (exact: %s) frame_idx %s' % (frame_number, exact_only, frame_index))
         if frame_index is not None:
             return self._get_image_by_frame_index(frame_index)
         else:
