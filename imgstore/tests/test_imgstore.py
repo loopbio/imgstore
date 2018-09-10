@@ -311,6 +311,19 @@ def test_testencode_decode():
         assert v == i
 
 
+@pytest.mark.parametrize('fmt', ('npy', 'mjpeg'))
+def test_extract_only(loglevel_debug, fmt, request):
+    tdir = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(tdir))
+
+    d, _ = new_framecode_store(dest=tdir,
+                               frame0=57, nframes=20, format=fmt)
+
+    for i, fn in enumerate(range(57, 57+20)):
+        img = stores.extract_only_frame(d.full_path, i)
+        assert decode_image(ensure_color(img)[:, :, 0]) == fn
+
+
 def test_manual_assembly(loglevel_debug, request):
     tdir = tempfile.mkdtemp()
     request.addfinalizer(lambda: shutil.rmtree(tdir))
