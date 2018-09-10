@@ -149,8 +149,7 @@ class _ImgStore(object):
         try:
             uuid = smd['uuid']
         except KeyError:
-            self._log.warn('source is missing uuid, generating a weak one from filename')
-            uuid = string.ljust(os.path.basename(self._basedir), 32, 'X')
+            uuid = None
         self._uuid = uuid
 
         self._imgshape = tuple(smd['imgshape'])
