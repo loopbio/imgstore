@@ -358,6 +358,9 @@ class _ImgStore(object):
         """
         return the frame at the following index in the store
         """
+        if frame_index < 0:
+            raise ValueError('seeking to negative index not supported')
+
         self._log.debug('seek by frame_index %s' % frame_index)
 
         # go through the global index and find where our index is
