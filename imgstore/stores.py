@@ -39,6 +39,9 @@ STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
 
 
+_VERBOSE_DEBUG_CHUNKS = False
+
+
 class _ImgStore(object):
 
     _version = 2
@@ -655,14 +658,15 @@ class _MetadataMixin:
 
             for frame_range in _extract_ranges(idx['frame_number']):
                 self._index[frame_range] = chunk_n
-                self._log.debug('index:framenumbers chunk: %d holds:%r' % (chunk_n, frame_range))
+                if _VERBOSE_DEBUG_CHUNKS:
+                    self._log.debug('index:framenumbers chunk: %d holds:%r' % (chunk_n, frame_range))
             self._index_chunklens.append((chunk_n, chunk_len))
 
-        # debugging only
-        _chunk_range = xrange(0, -2, -1)
-        for _chunk_n, _chunk_len in self._index_chunklens:
-            _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
-            self._log.debug('index:index chunk: %d holds:%r' % (_chunk_n, list(_chunk_range)))
+        if _VERBOSE_DEBUG_CHUNKS:
+            _chunk_range = xrange(0, -2, -1)
+            for _chunk_n, _chunk_len in self._index_chunklens:
+                _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
+                self._log.debug('index:index chunk: %d holds:%r' % (_chunk_n, list(_chunk_range)))
 
         self._log.debug('built index in %fs' % (time.time() - t0))
 
