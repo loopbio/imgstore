@@ -149,8 +149,10 @@ class _ImgStore(object):
             raise ValueError('incompatible store version')
 
         try:
+            # noinspection PyShadowingNames
             uuid = smd['uuid']
         except KeyError:
+            # noinspection PyShadowingNames
             uuid = None
         self._uuid = uuid
 
@@ -354,7 +356,7 @@ class _ImgStore(object):
     def has_extra_data(self):
         return False
 
-    # noinspection PyMethodMayBeStaticfull_pat
+    # noinspection PyMethodMayBeStatic
     def get_extra_data(self):
         return {}
 
@@ -411,7 +413,8 @@ class _ImgStore(object):
         if frame_index < 0:
             raise ValueError('seeking to negative index not supported')
 
-        self._log.debug('seek by frame_index %s' % frame_index)
+        if _VERBOSE_DEBUG_CHUNKS:
+            self._log.debug('seek by frame_index %s' % frame_index)
 
         # go through the global index and find where our index is
         chunk_n = frame_idx = -1
@@ -446,7 +449,8 @@ class _ImgStore(object):
         # there is a high likelihood the current chunk holds the next frame
         # so look there first
 
-        self._log.debug('seek by frame_number %s (exact: %s) frame_idx %s' % (frame_number, exact_only, frame_idx))
+        if _VERBOSE_DEBUG_CHUNKS:
+            self._log.debug('seek by frame_number %s (exact: %s) frame_idx %s' % (frame_number, exact_only, frame_idx))
 
         if frame_idx is None:
             try:
@@ -491,7 +495,8 @@ class _ImgStore(object):
             except ValueError:
                 raise ValueError('%s %s not found in chunk %s' % ('frame_number', frame_number, chunk_n))
 
-        self._log.debug('seek found in chunk %d attempt read chunk index %d' % (self._chunk_n, frame_idx))
+        if _VERBOSE_DEBUG_CHUNKS:
+            self._log.debug('seek found in chunk %d attempt read chunk index %d' % (self._chunk_n, frame_idx))
 
         # ensure the read works before setting frame_number
         _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
@@ -842,6 +847,7 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
         return list(zip(chunk_numbers, tuple(os.path.join(self._basedir, '%06d' % int(n), 'index')
                                              for n in chunk_numbers)))
 
+    # noinspection PyShadowingBuiltins
     @staticmethod
     def _open_image(path, format, color):
         if format in DirectoryImgStore._cv2_fmts:
