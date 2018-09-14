@@ -254,3 +254,11 @@ def main_saver():
         store.add_image(img, i, time.time())
 
     store.close()
+
+
+def main_test():
+    import pytest
+    import os.path
+
+    pytest.main(['-v', os.path.join(os.path.abspath(os.path.dirname(__file__)), 'tests')])
+
