@@ -887,7 +887,10 @@ class DirectoryImgStore(_ImgStore):
 
     @classmethod
     def supported_formats(cls):
-        return list(cls._cv2_fmts) + list(cls._raw_fmts)
+        fmts = list(cls._cv2_fmts) + list(cls._raw_fmts)
+        if bloscpack is None:
+            fmts.remove('bpk')
+        return fmts
 
     @classmethod
     def supports_format(cls, fmt):
