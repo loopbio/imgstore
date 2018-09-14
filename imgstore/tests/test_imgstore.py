@@ -93,25 +93,20 @@ def graffiti():
     return cv2.imread(os.path.join(TEST_DATA_DIR, 'graffiti.png'), cv2.IMREAD_COLOR)
 
 
-@pytest.mark.parametrize('fmt', (pytest.mark.skipif(stores.bloscpack is None,
-                                                    reason='bloscpack not installed')('bpk'),
-                                 'mjpeg',
-                                 'npy', 'tif', 'png', 'ppm', 'pgm', 'bmp', 'jpg'))
-def test_imgstore(request, grey_image, fmt):
+@pytest.mark.parametrize('fmt', stores.DirectoryImgStore.supported_formats())
+def test_dirimgstore(request, grey_image, fmt):
 
     # tdir = tempfile.mkdtemp(dir='/path/to/ssd/') for performance testing
     tdir = tempfile.mkdtemp()
     request.addfinalizer(lambda: shutil.rmtree(tdir))
 
-    kwargs = dict(basedir=tdir,
-                  mode='w',
-                  imgshape=grey_image.shape,
-                  imgdtype=grey_image.dtype,
-                  chunksize=10,  # test a small chunksize so we can hit interesting edge cases
-                  metadata={'timezone': 'Europe/Austria'},
-                  format=fmt)
-
-    d = stores.new_for_format(fmt, **kwargs)
+    d = stores.DirectoryImgStore(basedir=tdir,
+                                 mode='w',
+                                 imgshape=grey_image.shape,
+                                 imgdtype=grey_image.dtype,
+                                 chunksize=10,  # test a small chunksize so we can hit interesting edge cases
+                                 metadata={'timezone': 'Europe/Austria'},
+                                 format=fmt)
 
     frame_times = {}
 
@@ -155,7 +150,7 @@ def test_imgstore(request, grey_image, fmt):
 
 @pytest.mark.parametrize('fmt', ('mjpeg', 'npy', 'h264/mkv'))
 @pytest.mark.parametrize('imgtype', ('b&w', 'color'))
-def test_imgstore_outoforder(request,  fmt, imgtype):
+def test_outoforder(request,  fmt, imgtype):
     SZ = 512
 
     tdir = tempfile.mkdtemp()
@@ -628,3 +623,9 @@ def test_seek_types(loglevel_debug, request, chunksize, fmt, seek):
     with pytest.raises(ValueError):
         frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True,
                                                              frame_index=frame_count)
+
+def test_always_supported():
+    fmts = stores.get_supported_formats()
+    assert 'mjpeg' in fmts
+    assert 'npy' in fmts
+
