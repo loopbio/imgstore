@@ -955,34 +955,6 @@ class VideoImgStore(_ImgStore):
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
 
     @property
-    def lossless(self):
-        return False
-
-    def empty(self):
-        _ImgStore.empty(self)
-        for _, chunk_path in self._find_chunks(chunk_numbers=None):
-            os.unlink(chunk_path + self._ext)
-            self._remove_index(chunk_path)
-
-    def insert_chunk(self, video_path, frame_numbers, frame_times, move=True):
-        assert len(frame_numbers) == len(frame_times)
-        assert video_path.endswith(self._ext)
-
-        self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
-        self._chunk_md['frame_number'] = np.asarray(frame_numbers)
-        self._chunk_md['frame_time'] = np.asarray(frame_times)
-
-        self._save_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
-
-        vid = os.path.join(self._basedir, '%06d%s' % (self._chunk_n, self._ext))
-        if move:
-            shutil.move(video_path, vid)
-        else:
-            shutil.copy(video_path, vid)
-
-        self._chunk_n += 1
-
-    @property
     def _ext(self):
         # forward compatibility
         try:
@@ -1082,6 +1054,41 @@ class VideoImgStore(_ImgStore):
             return img
         finally:
             cap.release()
+
+    @property
+    def lossless(self):
+        return False
+
+    def close(self):
+        super(VideoImgStore, self).close()
+        if self._cap is not None:
+            self._cap.release()
+            self._cap = None
+            self._capfn = None
+
+    def empty(self):
+        _ImgStore.empty(self)
+        for _, chunk_path in self._find_chunks(chunk_numbers=None):
+            os.unlink(chunk_path + self._ext)
+            self._remove_index(chunk_path)
+
+    def insert_chunk(self, video_path, frame_numbers, frame_times, move=True):
+        assert len(frame_numbers) == len(frame_times)
+        assert video_path.endswith(self._ext)
+
+        self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
+        self._chunk_md['frame_number'] = np.asarray(frame_numbers)
+        self._chunk_md['frame_time'] = np.asarray(frame_times)
+
+        self._save_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
+
+        vid = os.path.join(self._basedir, '%06d%s' % (self._chunk_n, self._ext))
+        if move:
+            shutil.move(video_path, vid)
+        else:
+            shutil.copy(video_path, vid)
+
+        self._chunk_n += 1
 
 
 def new_for_filename(path, **kwargs):
