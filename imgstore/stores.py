@@ -294,6 +294,14 @@ class _ImgStore(object):
         self._chunk_md['frame_number'].append(frame_number)
         self._chunk_md['frame_time'].append(frame_time)
 
+    @classmethod
+    def supported_formats(cls):
+        raise NotImplementedError
+
+    @classmethod
+    def supports_format(cls, fmt):
+        return fmt in cls.supported_formats()
+
     @staticmethod
     def _save_index(path_with_extension, data_dict):
         _, extension = os.path.splitext(path_with_extension)
@@ -892,10 +900,6 @@ class DirectoryImgStore(_ImgStore):
             fmts.remove('bpk')
         return fmts
 
-    @classmethod
-    def supports_format(cls, fmt):
-        return (fmt in cls._cv2_fmts) or (fmt in cls._raw_fmts)
-
     @property
     def lossless(self):
         return self._format != 'jpg'
@@ -1062,10 +1066,6 @@ class VideoImgStore(_ImgStore):
     @classmethod
     def supported_formats(cls):
         return cls._cv2_fmts.keys()
-
-    @classmethod
-    def supports_format(cls, fmt):
-        return fmt in cls._cv2_fmts
 
     @staticmethod
     def _extract_only_frame(basedir, chunk_n, frame_n, smd):
