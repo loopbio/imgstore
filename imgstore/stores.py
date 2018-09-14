@@ -12,15 +12,14 @@ import string
 import datetime
 import shutil
 
-import pytz
-import tzlocal
-import dateutil.parser
-
 import cv2
 import yaml
 import json
 import numpy as np
 import pandas as pd
+import pytz
+import tzlocal
+import dateutil.parser
 
 try:
     import bloscpack
@@ -38,7 +37,6 @@ from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color, 
 STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
 
-
 _VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
 
@@ -50,9 +48,10 @@ def _extract_store_metadata(full_path):
 
 
 class _ImgStore(object):
-
     _version = 2
     _supported_modes = ''
+
+    FRAME_MD = ('frame_number', 'frame_time')
 
     def __init__(self, basedir, mode, imgshape=None, imgdtype=None, chunksize=None, metadata=None,
                  encoding=None, write_encode_encoding=None):
@@ -267,6 +266,146 @@ class _ImgStore(object):
 
         self._save_chunk(None, self._chunk_n)
 
+    def _save_chunk_metadata(self, path_without_extension, extension='.npz'):
+        path = path_without_extension + extension
+        self._save_index(path, self._chunk_md)
+
+        # also calculate the filename of the extra file to hold any data
+        if self._extra_data_fp is not None:
+            self._extra_data_fp.write(']')
+            self._extra_data_fp.close()
+            self._extra_data_fp = None
+
+    def _new_chunk_metadata(self, chunk_path):
+        self._extra_data_fn = chunk_path + '.extra.json'
+        self._chunk_md = {k: [] for k in _ImgStore.FRAME_MD}
+        self._chunk_md.update(self._metadata)
+
+    def _save_image_metadata(self, frame_number, frame_time):
+        self._chunk_md['frame_number'].append(frame_number)
+        self._chunk_md['frame_time'].append(frame_time)
+
+    @staticmethod
+    def _save_index(path_with_extension, data_dict):
+        _, extension = os.path.splitext(path_with_extension)
+        with open(path_with_extension, 'w') as f:
+            if extension == '.yaml':
+                yaml.safe_dump(data_dict, f)
+            elif extension == '.npz':
+                # noinspection PyTypeChecker
+                np.savez(f, **data_dict)
+            else:
+                raise ValueError('unknown index format: %s' % extension)
+
+    @staticmethod
+    def _remove_index(path_without_extension):
+        for extension in ('.npz', '.yaml'):
+            path = path_without_extension + extension
+            if os.path.exists(path):
+                os.unlink(path)
+
+    @staticmethod
+    def _load_index(path_without_extension):
+        for extension in ('.npz', '.yaml'):
+            path = path_without_extension + extension
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    if extension == '.yaml':
+                        dat = yaml.safe_load(f)
+                        return {k: dat[k] for k in _ImgStore.FRAME_MD}
+                    elif extension == '.npz':
+                        dat = np.load(f)
+                        return {k: dat[k].tolist() for k in _ImgStore.FRAME_MD}
+
+        raise IOError('could not find index %s' % path_without_extension)
+
+    def _build_index(self, chunk_n_and_chunk_paths):
+        t0 = time.time()
+        for chunk_n, chunk_path in sorted(chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+            try:
+                idx = self._load_index(chunk_path)
+            except IOError:
+                self._log.warning('missing index for chunk %s' % chunk_n)
+                continue
+
+            if not idx['frame_number']:
+                # empty chunk
+                continue
+
+            chunk_len = len(idx['frame_number'])
+            self.frame_count += chunk_len
+            self._t0 = min(self._t0, np.min(idx['frame_time']))
+            self._tN = max(self._tN, np.max(idx['frame_time']))
+
+            for frame_range in _extract_ranges(idx['frame_number']):
+                self._index[frame_range] = chunk_n
+                if _VERBOSE_DEBUG_CHUNKS:
+                    self._log.debug('index:framenumbers chunk: %d holds:%r' % (chunk_n, frame_range))
+            self._index_chunklens.append((chunk_n, chunk_len))
+
+        if _VERBOSE_DEBUG_CHUNKS:
+            _chunk_range = xrange(0, -2, -1)
+            for _chunk_n, _chunk_len in self._index_chunklens:
+                _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
+                self._log.debug('index:index chunk: %d holds:%r' % (_chunk_n, list(_chunk_range)))
+
+        self._log.debug('built index in %fs' % (time.time() - t0))
+
+        k = self._index.keys()
+        self.frame_min = np.min(k)
+        self.frame_max = np.max(k)
+
+        self._log.debug('frame range %f -> %f' % (self.frame_min, self.frame_max))
+
+    def _load_chunk_metadata(self, path_without_extension):
+        self._chunk_md = self._load_index(path_without_extension)
+
+    def get_frame_metadata(self):
+        dat = {k: [] for k in _ImgStore.FRAME_MD}
+        for chunk_n, chunk_path in self._find_chunks(self.chunks):
+            idx = self._load_index(chunk_path)
+            for k in _ImgStore.FRAME_MD:
+                dat[k].extend(idx[k])
+        return dat
+
+    @property
+    def has_extra_data(self):
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+            path = chunk_path + '.extra.json'
+            if os.path.exists(path):
+                return True
+        return False
+
+    def get_extra_data(self):
+        dfs = []
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+            path = chunk_path + '.extra.json'
+            if os.path.exists(path):
+                dfs.append(pd.read_json(path, orient='record'))
+        return pd.concat(dfs, axis=0, ignore_index=True)
+
+    def add_extra_data(self, **data):
+        if not data:
+            return
+
+        data['frame_time'] = self.frame_time
+        data['frame_number'] = self.frame_number
+        data['frame_index'] = self._frame_n - 1  # we post-increment in add_frame
+
+        # noinspection PyBroadException
+        try:
+            txt = json.dumps(data, cls=JsonCustomEncoder)
+        except Exception:
+            self._log.warning('error writing extra data', exc_info=True)
+            return
+
+        if self._extra_data_fp is None:
+            self._extra_data_fp = open(self._extra_data_fn, 'w')
+            self._extra_data_fp.write('[')
+        else:
+            self._extra_data_fp.write(', ')
+        self._extra_data_fp.write(txt)
+
     def _save_image(self, img, frame_number, frame_time):  # pragma: no cover
         raise NotImplementedError
 
@@ -277,9 +416,6 @@ class _ImgStore(object):
         raise NotImplementedError
 
     def _load_chunk(self, n):  # pragma: no cover
-        raise NotImplementedError
-
-    def _build_index(self, chunk_n_and_chunk_paths):  # pragma: no cover
         raise NotImplementedError
 
     def _find_chunks(self, chunk_numbers):  # pragma: no cover
@@ -348,17 +484,6 @@ class _ImgStore(object):
 
     def disable_decoding(self):
         self._decode_image = lambda x: x
-
-    def add_extra_data(self, **data):
-        pass
-
-    @property
-    def has_extra_data(self):
-        return False
-
-    # noinspection PyMethodMayBeStatic
-    def get_extra_data(self):
-        return {}
 
     def add_image(self, img, frame_number, frame_time):
         self._save_image(self._encode_image(img), frame_number, frame_time)
@@ -527,10 +652,6 @@ class _ImgStore(object):
         if self._mode in 'wa':
             self._save_chunk(self._chunk_n, None)
 
-    # noinspection PyMethodMayBeStatic
-    def get_frame_metadata(self):
-        return {}
-
     def empty(self):
         if self._mode != 'w':
             raise ValueError('can only empty stores for writing')
@@ -616,151 +737,6 @@ class _ImgStore(object):
         return None
 
 
-# noinspection PyUnresolvedReferences,PyAttributeOutsideInit,PyClassHasNoInit
-class _MetadataMixin:
-
-    FRAME_MD = ('frame_number', 'frame_time')
-
-    def _save_index(self, path_with_extension, data_dict):
-        _, extension = os.path.splitext(path_with_extension)
-        if extension == '.yaml':
-            with open(path_with_extension, 'w') as f:
-                yaml.safe_dump(data_dict, f)
-        elif extension == '.npz':
-            with open(path_with_extension, 'wb') as f:
-                # noinspection PyTypeChecker
-                np.savez(f, **data_dict)
-        else:
-            raise ValueError('unknown index format: %s' % extension)
-
-    def _save_chunk_metadata(self, path_without_extension, extension='.npz'):
-        path = path_without_extension + extension
-        self._save_index(path, self._chunk_md)
-
-        # also calculate the filename of the extra file to hold any data
-        if self._extra_data_fp is not None:
-            self._extra_data_fp.write(']')
-            self._extra_data_fp.close()
-            self._extra_data_fp = None
-
-    def _new_chunk_metadata(self, chunk_path):
-        self._extra_data_fn = chunk_path + '.extra.json'
-        self._chunk_md = {k: [] for k in _MetadataMixin.FRAME_MD}
-        self._chunk_md.update(self._metadata)
-
-    def _save_image_metadata(self, frame_number, frame_time):
-        self._chunk_md['frame_number'].append(frame_number)
-        self._chunk_md['frame_time'].append(frame_time)
-
-    def add_extra_data(self, **data):
-        if not data:
-            return
-
-        data['frame_time'] = self.frame_time
-        data['frame_number'] = self.frame_number
-        data['frame_index'] = self._frame_n - 1  # we post-increment in add_frame
-
-        # noinspection PyBroadException
-        try:
-            txt = json.dumps(data, cls=JsonCustomEncoder)
-        except:
-            self._log.warning('error writing extra data', exc_info=True)
-            return
-
-        if self._extra_data_fp is None:
-            self._extra_data_fp = open(self._extra_data_fn, 'wt')
-            self._extra_data_fp.write('[')
-        else:
-            self._extra_data_fp.write(', ')
-        self._extra_data_fp.write(txt)
-
-    @staticmethod
-    def _remove_index(path_without_extension):
-        for extension in ('.npz', '.yaml'):
-            path = path_without_extension + extension
-            if os.path.exists(path):
-                os.unlink(path)
-
-    @staticmethod
-    def _load_index(path_without_extension):
-        for extension in ('.npz', '.yaml'):
-            path = path_without_extension + extension
-            if os.path.exists(path):
-                if extension == '.yaml':
-                    with open(path, 'rt') as f:
-                        dat = yaml.safe_load(f)
-                        return {k: dat[k] for k in _MetadataMixin.FRAME_MD}
-                elif extension == '.npz':
-                    dat = np.load(path)
-                    return {k: dat[k].tolist() for k in _MetadataMixin.FRAME_MD}
-
-        raise IOError('could not find index %s' % path_without_extension)
-
-    def _build_index(self, chunk_n_and_chunk_paths):
-        t0 = time.time()
-        for chunk_n, chunk_path in sorted(chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
-            try:
-                idx = self._load_index(chunk_path)
-            except IOError:
-                self._log.warning('missing index for chunk %s' % chunk_n)
-                continue
-
-            if not idx['frame_number']:
-                # empty chunk
-                continue
-
-            chunk_len = len(idx['frame_number'])
-            self.frame_count += chunk_len
-            self._t0 = min(self._t0, np.min(idx['frame_time']))
-            self._tN = max(self._tN, np.max(idx['frame_time']))
-
-            for frame_range in _extract_ranges(idx['frame_number']):
-                self._index[frame_range] = chunk_n
-                if _VERBOSE_DEBUG_CHUNKS:
-                    self._log.debug('index:framenumbers chunk: %d holds:%r' % (chunk_n, frame_range))
-            self._index_chunklens.append((chunk_n, chunk_len))
-
-        if _VERBOSE_DEBUG_CHUNKS:
-            _chunk_range = xrange(0, -2, -1)
-            for _chunk_n, _chunk_len in self._index_chunklens:
-                _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
-                self._log.debug('index:index chunk: %d holds:%r' % (_chunk_n, list(_chunk_range)))
-
-        self._log.debug('built index in %fs' % (time.time() - t0))
-
-        self.frame_min = np.nan if 0 == len(self._index) else min(low for low, _ in self._index)
-        self.frame_max = np.nan if 0 == len(self._index) else max(high for _, high in self._index)
-
-        self._log.debug('frame range %f -> %f' % (self.frame_min, self.frame_max))
-
-    def _load_chunk_metadata(self, path_without_extension):
-        self._chunk_md = self._load_index(path_without_extension)
-
-    def get_frame_metadata(self):
-        dat = {k: [] for k in _MetadataMixin.FRAME_MD}
-        for chunk_n, chunk_path in self._find_chunks(self.chunks):
-            idx = self._load_index(chunk_path)
-            for k in _MetadataMixin.FRAME_MD:
-                dat[k].extend(idx[k])
-        return dat
-
-    @property
-    def has_extra_data(self):
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
-            path = chunk_path + '.extra.json'
-            if os.path.exists(path):
-                return True
-        return False
-
-    def get_extra_data(self):
-        dfs = []
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
-            path = chunk_path + '.extra.json'
-            if os.path.exists(path):
-                dfs.append(pd.read_json(path, orient='record'))
-        return pd.concat(dfs, axis=0, ignore_index=True)
-
-
 def _extract_ranges(data):
     # convert a list of integers into a list of contiguous ranges
     # [2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 20] -> [(2,5), (12,17), (20, 20)]
@@ -776,8 +752,7 @@ def _extract_ranges(data):
     return ranges
 
 
-class DirectoryImgStore(_MetadataMixin, _ImgStore):
-
+class DirectoryImgStore(_ImgStore):
     _supported_modes = 'wr'
 
     _cv2_fmts = {'tif', 'png', 'jpg', 'ppm', 'pgm', 'bmp'}
@@ -903,8 +878,7 @@ class DirectoryImgStore(_MetadataMixin, _ImgStore):
         return self._format != 'jpg'
 
 
-class VideoImgStore(_MetadataMixin, _ImgStore):
-
+class VideoImgStore(_ImgStore):
     _supported_modes = 'wr'
 
     _cv2_fmts = {'mjpeg': FourCC('M', 'J', 'P', 'G'),
@@ -1072,6 +1046,7 @@ class VideoImgStore(_MetadataMixin, _ImgStore):
 
     @staticmethod
     def _extract_only_frame(basedir, chunk_n, frame_n, smd):
+        #fixme: check ext
         capfn = os.path.join(basedir, '%06d.avi' % chunk_n)
         cap = cv2.VideoCapture(capfn)
 
