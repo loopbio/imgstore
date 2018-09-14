@@ -311,7 +311,7 @@ def test_testencode_decode():
         assert v == i
 
 
-@pytest.mark.parametrize('fmt', ('npy', 'mjpeg'))
+@pytest.mark.parametrize('fmt', ('npy', 'mjpeg', 'h264/mkv'))
 def test_extract_only(loglevel_debug, fmt, request):
     tdir = tempfile.mkdtemp()
     request.addfinalizer(lambda: shutil.rmtree(tdir))
@@ -322,6 +322,12 @@ def test_extract_only(loglevel_debug, fmt, request):
     for i, fn in enumerate(range(57, 57+20)):
         img = stores.extract_only_frame(d.full_path, i)
         assert decode_image(ensure_color(img)[:, :, 0]) == fn
+
+
+def test_extract_only_motif(loglevel_debug):
+    full_path = os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml')
+    img = stores.extract_only_frame(full_path, 42)
+    assert decode_image(ensure_color(img)[:, :, 0]) == 42
 
 
 def test_manual_assembly(loglevel_debug, request):
