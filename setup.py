@@ -41,6 +41,9 @@ setup(
         'numpy',
         'pandas',
         'pyyaml',
+        'pytz',
+        'tzlocal',
+        'python-dateutil',
     ],
     tests_require=[
         'pytest',
