@@ -954,17 +954,21 @@ class VideoImgStore(_ImgStore):
             imgshape = self._metadata['imgshape']
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
 
-    @property
-    def _ext(self):
+    @staticmethod
+    def _get_chunk_extension(metadata):
         # forward compatibility
         try:
-            return self._metadata['extension']
+            return metadata['extension']
         except KeyError:
             # backward compatibility with old mjpeg stores
-            if self._metadata['format'] == 'mjpeg':
+            if metadata['format'] == 'mjpeg':
                 return '.avi'
             # backwards compatibility with old bview/motif stores
             return '.mp4'
+
+    @property
+    def _ext(self):
+        return self._get_chunk_extension(self._metadata)
 
     def _find_chunks(self, chunk_numbers):
         if chunk_numbers is None:
@@ -1042,7 +1046,8 @@ class VideoImgStore(_ImgStore):
     @staticmethod
     def _extract_only_frame(basedir, chunk_n, frame_n, smd):
         #fixme: check ext
-        capfn = os.path.join(basedir, '%06d.avi' % chunk_n)
+        capfn = os.path.join(basedir, '%06d%s' % (chunk_n,
+                                                  VideoImgStore._get_chunk_extension(smd)))
         cap = cv2.VideoCapture(capfn)
 
         log = logging.getLogger('loopb.imgstore')
