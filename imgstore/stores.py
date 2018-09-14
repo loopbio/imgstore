@@ -36,6 +36,7 @@ from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color, 
 
 STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
+STORE_LOCK_FILENAME = '.lock'
 
 _VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
@@ -259,7 +260,9 @@ class _ImgStore(object):
         with open(os.path.join(self._basedir, STORE_MD_FILENAME), 'wt') as f:
             yaml.safe_dump(metadata, f)
 
-        # noinspection PyUnresolvedReferences
+        with open(os.path.join(self._basedir, STORE_LOCK_FILENAME), 'a') as f:
+            pass
+
         smd = metadata.pop(STORE_MD_KEY)
         self._metadata = smd
         self._user_metadata.update(metadata)
@@ -651,6 +654,13 @@ class _ImgStore(object):
     def close(self):
         if self._mode in 'wa':
             self._save_chunk(self._chunk_n, None)
+            try:
+                if os.path.isfile(os.path.join(self._basedir, STORE_LOCK_FILENAME)):
+                    os.remove(os.path.join(self._basedir, STORE_LOCK_FILENAME))
+            except OSError:
+                self._log.warn('could not remove lock file', exc_info=True)
+            except Exception:
+                self._log.warn('could not remove lock file (unknown error)', exc_info=True)
 
     def empty(self):
         if self._mode != 'w':
