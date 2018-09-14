@@ -183,6 +183,7 @@ def test_imgstore_outoforder(request,  fmt, imgtype):
     d = stores.new_for_format(fmt, **kwargs)
 
     assert d.image_shape == orig_img.shape
+    assert os.path.isfile(os.path.join(d.filename, stores.STORE_LOCK_FILENAME))
 
     F = 50
     assert F > 20+1
@@ -230,8 +231,12 @@ def test_imgstore_outoforder(request,  fmt, imgtype):
         frame_times[i] = t
 
     d.close()
+    assert not os.path.isfile(os.path.join(d.filename, stores.STORE_LOCK_FILENAME))
 
     d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME))
+
+    # read mode doesnt create lock file
+    assert not os.path.isfile(os.path.join(d.filename, stores.STORE_LOCK_FILENAME))
 
     assert d.image_shape == orig_img.shape
     assert d.has_extra_data
