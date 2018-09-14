@@ -254,7 +254,7 @@ class _ImgStore(object):
                     'uuid': self._uuid}
 
         if metadata is None:
-            metadata[STORE_MD_KEY] = store_md
+            metadata = {STORE_MD_KEY: store_md}
         elif isinstance(metadata, dict):
             try:
                 metadata[STORE_MD_KEY].update(store_md)
