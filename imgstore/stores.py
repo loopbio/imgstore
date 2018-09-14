@@ -11,10 +11,10 @@ import uuid
 import string
 import datetime
 import shutil
+import json
 
 import cv2
 import yaml
-import json
 import numpy as np
 import pandas as pd
 import pytz
