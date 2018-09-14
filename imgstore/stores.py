@@ -779,13 +779,17 @@ class DirectoryImgStore(_ImgStore):
         self._chunk_cdir = ''
         self._chunk_md = {}
 
+        # keep compat with VideoImgStore
+        kwargs.pop('videosize', None)
         # keep compat with VideoImgStoreFFMPEG
         kwargs.pop('seek', None)
 
+        self._format = kwargs.pop('format', None)
         if kwargs['mode'] == 'w':
             if 'chunksize' not in kwargs:
                 kwargs['chunksize'] = 100
-            self._format = kwargs.pop('format')
+            if self._format is None:
+                raise ValueError('image format must be supplied')
             metadata = kwargs.get('metadata', {})
             metadata[STORE_MD_KEY] = {'format': self._format}
             kwargs['metadata'] = metadata
