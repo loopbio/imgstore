@@ -54,6 +54,7 @@ setup(
         'console_scripts': [
             'imgstore-view = imgstore.util:main_viewer',
             'imgstore-save = imgstore.util:main_saver',
+            'imgstore-test = imgstore.util:main_test',
         ]
     },
 )
