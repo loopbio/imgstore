@@ -17,7 +17,7 @@ import tzlocal
 import dateutil.parser
 
 import cv2
-from ruamel import yaml
+import yaml
 import json
 import numpy as np
 import pandas as pd
@@ -45,7 +45,7 @@ _VERBOSE_DEBUG_CHUNKS = False
 
 def _extract_store_metadata(full_path):
     with open(full_path, 'r') as f:
-        allmd = yaml.load(f, Loader=yaml.Loader)
+        allmd = yaml.load(f)
     return allmd.pop(STORE_MD_KEY)
 
 
@@ -132,7 +132,7 @@ class _ImgStore(object):
     def _init_read(self):
         fullpath = os.path.join(self._basedir, STORE_MD_FILENAME)
         with open(fullpath, 'r') as f:
-            allmd = yaml.load(f, Loader=yaml.Loader)
+            allmd = yaml.load(f)
         smd = allmd.pop(STORE_MD_KEY)
 
         self._user_metadata.update(allmd)
@@ -1102,7 +1102,7 @@ def new_for_filename(path, **kwargs):
         kwargs['basedir'] = basedir
 
     with open(fullpath, 'rt') as f:
-        clsname = yaml.load(f, Loader=yaml.Loader)[STORE_MD_KEY]['class']
+        clsname = yaml.load(f)[STORE_MD_KEY]['class']
 
     # retain compatibility with internal loopbio stores
     if clsname == 'VideoImgStoreFFMPEG':
