@@ -129,6 +129,12 @@ class _ImgStore(object):
             # note: frame_idx always refers to the frame_idx within the chunk
             # whereas frame_index refers to the global frame_index from (0, frame_count]
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def _init_read(self):
         fullpath = os.path.join(self._basedir, STORE_MD_FILENAME)
         with open(fullpath, 'r') as f:
