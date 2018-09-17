@@ -2,7 +2,6 @@ from __future__ import print_function
 import numpy as np
 import numpy.testing as npt
 import os.path
-import random
 import shutil
 import tempfile
 import time
@@ -93,57 +92,58 @@ def graffiti():
     return cv2.imread(os.path.join(TEST_DATA_DIR, 'graffiti.png'), cv2.IMREAD_COLOR)
 
 
-@pytest.mark.parametrize('fmt', stores.DirectoryImgStore.supported_formats())
-def test_dirimgstore(request, grey_image, fmt):
+@pytest.mark.parametrize('fmt', stores.get_supported_formats())
+def test_all(request, fmt):
+    F = 21
+    SZ = 512
+    imgtype = 'color'
 
-    # tdir = tempfile.mkdtemp(dir='/path/to/ssd/') for performance testing
     tdir = tempfile.mkdtemp()
     request.addfinalizer(lambda: shutil.rmtree(tdir))
 
-    d = stores.DirectoryImgStore(basedir=tdir,
-                                 mode='w',
-                                 imgshape=grey_image.shape,
-                                 imgdtype=grey_image.dtype,
-                                 chunksize=10,  # test a small chunksize so we can hit interesting edge cases
-                                 metadata={'timezone': 'Europe/Austria'},
-                                 format=fmt)
+    def _build_img(num):
+        img = encode_image(num, imgsize=SZ)
+        if imgtype == 'color':
+            return np.dstack((img, img, img))
+        return img
 
+    def _decode_image(img):
+        if imgtype == 'color':
+            return decode_image(img[:, :, 0], imgsize=SZ)
+        return decode_image(img, imgsize=SZ)
+
+    orig_img = _build_img(0)
+    kwargs = dict(basedir=tdir,
+                  mode='w',
+                  imgshape=orig_img.shape,
+                  imgdtype=orig_img.dtype,
+                  chunksize=10,
+                  metadata={'timezone': 'Europe/Austria'},
+                  format=fmt)
+    d = stores.new_for_format(fmt, **kwargs)
+
+    fns = []
     frame_times = {}
-
-    F = 100
-
-    t0 = time.time()
     for i in range(F):
         t = time.time()
-        d.add_image(grey_image, i, t)
+        d.add_image(_build_img(i), i, t)
         frame_times[i] = t
+        fns.append(i)
     d.close()
-    dt = time.time() - t0
-
-    sz_bytes = get_size(tdir)
-    cmp_ratio = abs(100 - (100.0 * ((F * float(grey_image.nbytes)) / sz_bytes)))
-
-    orig_img = grey_image
-    print("\n%s %s %dx%dpx@%s frames took %.1fs @ %.1f fps (size: %.1fMB, %.1f%% %scompression)" %
-          (fmt, F,
-           orig_img.shape[1], orig_img.shape[0], orig_img.dtype,
-           dt, F / dt, sz_bytes / (1024 * 1024.),
-           cmp_ratio,
-           '' if d.lossless else 'LOSSY'))
 
     d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME),
                                 basedir=tdir, mode='r')
 
     assert d.user_metadata['timezone'] == 'Europe/Austria'
 
-    for f in (0, 1, 12, 3, 27, 50, 5, 99):
+    r = np.random.RandomState(42)
+    r.shuffle(fns)
+    for f in fns:
         img, (frame_number, frame_time) = d.get_image(frame_number=f)
         assert f == frame_number
         assert frame_times[f] == frame_time
-        assert img.shape == grey_image.shape
-
-        if d.lossless:
-            npt.assert_equal(grey_image, img)
+        assert img.shape == orig_img.shape
+        assert _decode_image(img) == f
 
     d.close()
 
@@ -238,19 +238,15 @@ def test_outoforder(request,  fmt, imgtype):
     assert d.frame_min == 0
     assert d.frame_max == F
 
-    random.shuffle(fns)
+    r = np.random.RandomState(42)
+    r.shuffle(fns)
     for f in fns:
-        truth_img = _build_img(f)
-
         img, (frame_number, frame_time) = d.get_image(frame_number=f)
         assert d.frame_number == f
         assert f == frame_number
         assert frame_times[f] == frame_time
-        assert img.shape == truth_img.shape
-
-        truth = _decode_image(truth_img)
-        this = _decode_image(img)
-        assert truth == this
+        assert img.shape == orig_img.shape
+        assert _decode_image(img) == f
 
     md = d.get_frame_metadata()
     npt.assert_array_equal(sorted([frame_times[f] for f in fns]), sorted(md['frame_time']))
@@ -385,6 +381,8 @@ def test_store_frame_metadata(request):
                                  chunksize=5,
                                  format='npy')
 
+    r = np.random.RandomState(42)
+
     N = 100
 
     fns = []
@@ -394,7 +392,7 @@ def test_store_frame_metadata(request):
         img = encode_image(num=i, imgsize=SZ)
 
         # skip some frames
-        if random.random() < 0.3:  # skip 30% of frames
+        if r.rand() < 0.3:  # skip 30% of frames
             continue
 
         frame_number = i
@@ -458,7 +456,11 @@ def test_videoimgstore_mp4():
         assert _frame_number == i
         assert decode_image(img, nbits=L, imgsize=SZ) == i
 
-    for i in (7, 57, 98, 12, 168):
+    fns = list(range(0, 178))
+    r = np.random.RandomState(42)
+    r.shuffle(fns)
+
+    for i in fns:
         img, (_frame_number, _frame_timestamp) = d.get_image(i)
         assert img.shape == (SZ, SZ)
         assert _frame_number == i
