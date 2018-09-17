@@ -915,7 +915,8 @@ class VideoImgStore(_ImgStore):
 
     _cv2_fmts = {'mjpeg': FourCC('M', 'J', 'P', 'G'),
                  'mjpeg/avi': FourCC('M', 'J', 'P', 'G'),
-                 'h264/mkv': FourCC('H', '2', '6', '4')}
+                 'h264/mkv': FourCC('H', '2', '6', '4'),
+                 'avc1/mp4': FourCC('a', 'v', 'c', '1')}
 
     def __init__(self, **kwargs):
 
