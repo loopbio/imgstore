@@ -93,13 +93,12 @@ def graffiti():
 
 
 @pytest.mark.parametrize('fmt', stores.get_supported_formats())
-def test_all(request, fmt):
+def test_all(tmpdir, fmt):
     F = 21
     SZ = 512
     imgtype = 'color'
 
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+    tdir = tmpdir.strpath
 
     def _build_img(num):
         img = encode_image(num, imgsize=SZ)
@@ -150,11 +149,10 @@ def test_all(request, fmt):
 
 @pytest.mark.parametrize('fmt', ('mjpeg', 'npy', 'h264/mkv'))
 @pytest.mark.parametrize('imgtype', ('b&w', 'color'))
-def test_outoforder(request,  fmt, imgtype):
+def test_outoforder(tmpdir,  fmt, imgtype):
     SZ = 512
 
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+    tdir = tmpdir.strpath
 
     def _build_img(num):
         img = encode_image(num, imgsize=SZ)
@@ -272,11 +270,10 @@ def test_outoforder(request,  fmt, imgtype):
         '' if d.lossless else 'LOSSY '))
 
 
-def test_create_and_times(loglevel_debug, request):
+def test_create_and_times(loglevel_debug, tmpdir):
     import pytz
 
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+    tdir = tmpdir.strpath
 
     # check we always get a UTC timesone
     # does not have created_utc in metadata
@@ -308,9 +305,8 @@ def test_testencode_decode():
 
 
 @pytest.mark.parametrize('fmt', ('npy', 'mjpeg', 'h264/mkv'))
-def test_extract_only(loglevel_debug, fmt, request):
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+def test_extract_only(loglevel_debug, fmt, tmpdir):
+    tdir = tmpdir.strpath
 
     d, _ = new_framecode_store(dest=tdir,
                                frame0=57, nframes=20, format=fmt)
@@ -326,9 +322,8 @@ def test_extract_only_motif(loglevel_debug):
     assert decode_image(ensure_color(img)[:, :, 0]) == 42
 
 
-def test_manual_assembly(loglevel_debug, request):
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+def test_manual_assembly(loglevel_debug, tmpdir):
+    tdir = tmpdir.strpath
 
     a = new_framecode_video(dest=os.path.join(tdir, 'a.avi'),
                             frame0=0, nframes=10)
@@ -368,11 +363,10 @@ def test_manual_assembly(loglevel_debug, request):
     store.close()
 
 
-def test_store_frame_metadata(request):
+def test_store_frame_metadata(tmpdir):
     SZ = 512
 
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+    tdir = tmpdir.strpath
 
     d = stores.DirectoryImgStore(basedir=tdir,
                                  mode='w',
@@ -468,9 +462,8 @@ def test_videoimgstore_mp4():
 
 
 @pytest.mark.parametrize('chunksize', (2, 3, 10))
-def test_reindex_to_zero(loglevel_debug, request, grey_image, chunksize):
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+def test_reindex_to_zero(loglevel_debug, tmpdir, grey_image, chunksize):
+    tdir = tmpdir.strpath
 
     fmt = 'mjpeg'
     kwargs = dict(basedir=tdir,
@@ -517,9 +510,8 @@ def test_reindex_to_zero(loglevel_debug, request, grey_image, chunksize):
     assert sorted(df['frame_number'].tolist()) == [-2, -1, 4]
 
 
-def test_reindex_impossible(request, grey_image):
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+def test_reindex_impossible(tmpdir, grey_image):
+    tdir = tmpdir.strpath
 
     fmt = 'mjpeg'
     kwargs = dict(basedir=tdir,
@@ -547,9 +539,8 @@ def test_reindex_impossible(request, grey_image):
 @pytest.mark.parametrize("seek", [True, False])
 @pytest.mark.parametrize("chunksize", [7, 20, 100])
 @pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'h264/mkv'])
-def test_seek_types(loglevel_debug, request, chunksize, fmt, seek):
-    tdir = tempfile.mkdtemp()
-    request.addfinalizer(lambda: shutil.rmtree(tdir))
+def test_seek_types(loglevel_debug, tmpdir, chunksize, fmt, seek):
+    tdir = tmpdir.strpath
 
     def _decode_image(_img):
         return decode_image(_img[:, :, 0], imgsize=512)
