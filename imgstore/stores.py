@@ -8,7 +8,6 @@ import time
 import logging
 import glob
 import uuid
-import string
 import datetime
 import shutil
 import json
@@ -27,8 +26,12 @@ except ImportError:
     bloscpack = None
 
 try:
+    # python 3
     from subprocess import DEVNULL
+    # noinspection PyShadowingBuiltins
+    xrange = range
 except ImportError:
+    # python 2
     DEVNULL = open(os.devnull, 'r+b')
 
 from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color, ensure_grayscale
@@ -305,14 +308,15 @@ class _ImgStore(object):
     @staticmethod
     def _save_index(path_with_extension, data_dict):
         _, extension = os.path.splitext(path_with_extension)
-        with open(path_with_extension, 'w') as f:
-            if extension == '.yaml':
+        if extension == '.yaml':
+            with open(path_with_extension, 'wt') as f:
                 yaml.safe_dump(data_dict, f)
-            elif extension == '.npz':
+        elif extension == '.npz':
+            with open(path_with_extension, 'wb') as f:
                 # noinspection PyTypeChecker
                 np.savez(f, **data_dict)
-            else:
-                raise ValueError('unknown index format: %s' % extension)
+        else:
+            raise ValueError('unknown index format: %s' % extension)
 
     @staticmethod
     def _remove_index(path_without_extension):
@@ -326,11 +330,12 @@ class _ImgStore(object):
         for extension in ('.npz', '.yaml'):
             path = path_without_extension + extension
             if os.path.exists(path):
-                with open(path, 'r') as f:
-                    if extension == '.yaml':
+                if extension == '.yaml':
+                    with open(path, 'rt') as f:
                         dat = yaml.safe_load(f)
                         return {k: dat[k] for k in _ImgStore.FRAME_MD}
-                    elif extension == '.npz':
+                elif extension == '.npz':
+                    with open(path, 'rb') as f:
                         dat = np.load(f)
                         return {k: dat[k].tolist() for k in _ImgStore.FRAME_MD}
 
@@ -368,9 +373,8 @@ class _ImgStore(object):
 
         self._log.debug('built index in %fs' % (time.time() - t0))
 
-        k = self._index.keys()
-        self.frame_min = np.min(k)
-        self.frame_max = np.max(k)
+        self.frame_min = np.nan if 0 == len(self._index) else min(low for low, _ in self._index)
+        self.frame_max = np.nan if 0 == len(self._index) else max(high for _, high in self._index)
 
         self._log.debug('frame range %f -> %f' % (self.frame_min, self.frame_max))
 
