@@ -1047,13 +1047,20 @@ class VideoImgStore(_ImgStore):
 
     @classmethod
     def supported_formats(cls):
-        return cls._cv2_fmts.keys()
+        # remove the duplicate
+        fmts = cls._cv2_fmts.keys()
+        fmts.remove('mjpeg')
+        return fmts
+
+    @classmethod
+    def supports_format(cls, fmt):
+        return fmt in cls._cv2_fmts
 
     @staticmethod
     def _extract_only_frame(basedir, chunk_n, frame_n, smd):
-        #fixme: check ext
         capfn = os.path.join(basedir, '%06d%s' % (chunk_n,
                                                   VideoImgStore._get_chunk_extension(smd)))
+        # noinspection PyArgumentList
         cap = cv2.VideoCapture(capfn)
 
         log = logging.getLogger('loopb.imgstore')

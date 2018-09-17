@@ -623,8 +623,9 @@ def test_seek_types(loglevel_debug, tmpdir, chunksize, fmt, seek):
         frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True,
                                                              frame_index=frame_count)
 
+
 def test_always_supported():
     fmts = stores.get_supported_formats()
-    assert 'mjpeg' in fmts
+    assert 'mjpeg/avi' in fmts
     assert 'npy' in fmts
 
