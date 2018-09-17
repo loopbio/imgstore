@@ -810,6 +810,9 @@ class DirectoryImgStore(_ImgStore):
 
         self._color = (self._imgshape[-1] == 3) & (len(self._imgshape) == 3)
 
+        if (self._mode == 'w') and (self._format == 'pgm') and self._color:
+            self._log.warn("store created with color image shape but using grayscale 'pgm' format")
+
         if self._format not in itertools.chain(self._cv2_fmts, ('npy', 'bpk')):
             raise ValueError('unknown format %s' % self._format)
 
@@ -827,6 +830,8 @@ class DirectoryImgStore(_ImgStore):
         if self._format in self._cv2_fmts:
             if self._format == 'ppm':
                 img = ensure_color(img)
+            elif self._format == 'pgm':
+                img = ensure_grayscale(img)
             cv2.imwrite(dest, img)
         elif self._format == 'npy':
             np.save(dest, img)
