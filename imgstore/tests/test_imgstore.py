@@ -629,3 +629,39 @@ def test_always_supported():
     assert 'mjpeg/avi' in fmts
     assert 'npy' in fmts
 
+
+@pytest.mark.parametrize('fmt', stores.VideoImgStore.supported_formats())
+def test_videoseek_extensive(fmt, tmpdir):
+    F = 1000
+    S_PCT = 0.4
+
+    SZ = 32
+
+    tdir = tmpdir.strpath
+
+    def _build_img(num):
+        return ensure_color(encode_image(num, imgsize=SZ))
+
+    def _decode_image(img):
+        return decode_image(img[:, :, 0], imgsize=SZ)
+
+    orig_img = _build_img(0)
+    kwargs = dict(basedir=tdir,
+                  mode='w',
+                  imgshape=orig_img.shape,
+                  imgdtype=orig_img.dtype,
+                  chunksize=F,  # one chunk to test seeking of video file
+                  format=fmt)
+
+    with stores.new_for_format(fmt, **kwargs) as d:
+        for i in range(F):
+            t = time.time()
+            d.add_image(_build_img(i), i, t)
+
+    r = np.random.RandomState(42)
+    fns = r.randint(low=0, high=F+1, size=int(S_PCT * F))
+
+    with stores.new_for_filename(tdir) as d:
+        for f in fns:
+            img, _ = d.get_image(frame_number=f)
+            assert _decode_image(img) == f
