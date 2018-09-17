@@ -1048,7 +1048,7 @@ class VideoImgStore(_ImgStore):
     @classmethod
     def supported_formats(cls):
         # remove the duplicate
-        fmts = cls._cv2_fmts.keys()
+        fmts = list(cls._cv2_fmts.keys())
         fmts.remove('mjpeg')
         return fmts
 
