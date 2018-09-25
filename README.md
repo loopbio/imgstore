@@ -109,3 +109,9 @@ echo /usr/local/opt/opencv3/lib/python2.7/site-packages >> /usr/local/lib/python
 # install imgstore
 pip install imgstore
 ```
+
+## Post install testing
+
+You should always run the command `imgstore-test` after installing imgstore. If your
+environment is working correctly you should see a lot of text printed, followed by the
+text `==== 66 passed, ..... ======`
