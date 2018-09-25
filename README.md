@@ -77,12 +77,11 @@ where 'frame index' OR 'frame number' can be passed.
 Some simple tools for creating, converting and viewing imgstores are provided
 
 * `imgstore-view /path/to/store`
-  view an imgstore
+  * view an imgstore
 * `imgstore-save --format 'avc1/mp4' --source /path/to/input.mp4 /path/to/store/to/save`
- * `--source` if omitted will be the first webcam
+  * `--source` if omitted will be the first webcam
 * `imgstore-test`
-  run extensive tests to check opencv build has mp4 support and trustworthy encoding/decoding
-
+  * run extensive tests to check opencv build has mp4 support and trustworthy encoding/decoding
 
 # Install
 
