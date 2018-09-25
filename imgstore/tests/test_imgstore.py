@@ -147,7 +147,7 @@ def test_all(tmpdir, fmt):
     d.close()
 
 
-@pytest.mark.parametrize('fmt', ('mjpeg', 'npy', 'h264/mkv'))
+@pytest.mark.parametrize('fmt', ('mjpeg', 'npy', 'h264/mkv', 'avc1/mp4'))
 @pytest.mark.parametrize('imgtype', ('b&w', 'color'))
 def test_outoforder(tmpdir,  fmt, imgtype):
     SZ = 512
@@ -304,7 +304,7 @@ def test_testencode_decode():
         assert v == i
 
 
-@pytest.mark.parametrize('fmt', ('npy', 'mjpeg', 'h264/mkv'))
+@pytest.mark.parametrize('fmt', ('npy', 'mjpeg', 'h264/mkv', 'avc1/mp4'))
 def test_extract_only(loglevel_debug, fmt, tmpdir):
     tdir = tmpdir.strpath
 
@@ -538,7 +538,7 @@ def test_reindex_impossible(tmpdir, grey_image):
 
 @pytest.mark.parametrize("seek", [True, False])
 @pytest.mark.parametrize("chunksize", [7, 20, 100])
-@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'h264/mkv'])
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'h264/mkv', 'avc1/mp4'])
 def test_seek_types(loglevel_debug, tmpdir, chunksize, fmt, seek):
     tdir = tmpdir.strpath
 
