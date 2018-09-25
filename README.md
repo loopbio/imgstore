@@ -57,6 +57,22 @@ img, (frame_number, frame_timestamp) = store.get_image(store.frame_max)
 print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
 ```
 
+
+## Extracting frames: frame index vs frame number
+
+Stores maintain two separate and distinct concepts, 'frame number', which
+is any integer vallue associated with a single frame, and 'frame index', which is numbered
+from 0 to the number of frames in the store. This difference is visible in the API with
+
+```python
+class ImgStore
+    def get_image(self, frame_number, exact_only=True, frame_index=None):
+        pass
+```
+
+where 'frame index' OR 'frame number' can be passed.
+
+
 # Install
 
 *IMGStore* depends on reliable OpenCV builds, and built with mp4/h264 support for
