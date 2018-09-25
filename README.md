@@ -1,5 +1,5 @@
-IMGStore houses your video frames
-=================================
+IMGStore - Houses Your Video And Data
+=====================================
 
 Imgstore is a container for video frames and metadata. It allows efficient storage and seeking
 through recordings from hours to weeks in duration. It supports compressed and uncompressed formats.
@@ -7,7 +7,13 @@ through recordings from hours to weeks in duration. It supports compressed and u
 Imgstore allows reading (and writing) videos recorded with
 loopbio's [Motif](http://loopbio.com/recording/) recording system.
 
-# Example: write a store
+# The Concept
+
+Video data is broken into chunks, which can be individual video files `VideoImgStore`, or
+a directory full of images `DirectoryImgStore`. The format of the chunks determines if the store is
+compressed, uncompressed, lossless or lossy.
+
+## Example: Write a store
 
 ```python
 import imgstore
@@ -18,7 +24,9 @@ import time
 height = width = 500
 blank_image = np.zeros((height,width,3), np.uint8)
 
-store = imgstore.new_for_format('jpg', mode='w', basedir='mystore', imgshape=blank_image.shape, imgdtype=blank_image.dtype, chunksize=10)
+store = imgstore.new_for_format('jpg', mode='w', basedir='mystore',
+                                imgshape=blank_image.shape, imgdtype=blank_image.dtype,
+                                chunksize=1000)
 
 for i in range(40):
     img = blank_image.copy()
@@ -28,9 +36,7 @@ for i in range(40):
 store.close()
 ```
 
-
-# Example: read a store
-
+## Example: Read a store
 
 ```python
 from imgstore import new_for_filename
@@ -49,7 +55,6 @@ print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
 img, (frame_number, frame_timestamp) = store.get_image(store.frame_max)
 print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
 ```
-
 
 # Install
 
