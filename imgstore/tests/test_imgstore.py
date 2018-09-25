@@ -631,7 +631,8 @@ def test_always_supported():
 
 
 @pytest.mark.parametrize('fmt', stores.VideoImgStore.supported_formats())
-def test_videoseek_extensive(fmt, tmpdir):
+@pytest.mark.parametrize("seek", [True, False])
+def test_videoseek_extensive(loglevel_debug, fmt, seek, tmpdir):
     F = 1000
     S_PCT = 0.4
 
@@ -661,7 +662,7 @@ def test_videoseek_extensive(fmt, tmpdir):
     r = np.random.RandomState(0)
     fns = r.randint(low=0, high=F, size=int(S_PCT * F))
 
-    with stores.new_for_filename(tdir) as d:
+    with stores.new_for_filename(tdir, seek=seek) as d:
         for f in fns:
             img, _ = d.get_image(frame_number=f)
             assert _decode_image(img) == f
