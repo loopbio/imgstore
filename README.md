@@ -24,9 +24,10 @@ import time
 height = width = 500
 blank_image = np.zeros((height,width,3), np.uint8)
 
-store = imgstore.new_for_format('jpg', mode='w', basedir='mystore',
+store = imgstore.new_for_format('npy',  # numpy format (uncompressed raw image frames)
+                                mode='w', basedir='mystore',
                                 imgshape=blank_image.shape, imgdtype=blank_image.dtype,
-                                chunksize=1000)
+                                chunksize=1000)  # 1000 files per chunk (directory)
 
 for i in range(40):
     img = blank_image.copy()
@@ -58,31 +59,35 @@ print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
 
 # Install
 
-Most of *IMGStore* dependencies are in the python package index (pypi),
-with the honorable exception of *opencv*. If you have a python environment
-with opencv already installed on it, you should be able to install IMGStore
-with a command like:
+*IMGStore* depends on reliable OpenCV builds, and built with mp4/h264 support for
+writing mp4s. Loopbio provides [reliable conda OpenCV builds](http://blog.loopbio.com/conda-packages.html)
+in our conda channel, and we recommend using these.
+
+We also recommend installing *IMGStore* from conda
+
+' $ conda install imgstore`
+
+After installing imgstore from any location, you should check it's tests pass to guarentee that
+you have a trustworthy OpenCV version
+
+## Installing from source
+
+ * git clone this repository
+ * `conda env create -f environment.yaml`
+
+## Installing from pypi
+
+We recommend installing *IMGStore* and its dependencies using the conda package manager, however
+it is possible to install using pip. We recommend first creating a new virtual environment 
 
 ```sh
-pip install imgstore
-```
-
-## Install in Ubuntu 14.04
-
-```sh
-# install opencv, pandas and virtualenv
-sudo apt-get install libopencv-dev python-opencv python-virtualenv python-pandas
-
 # generate virtual env
 virtualenv ~/.envs/imgstore --system-site-packages
-
 # activate the virtual env
 source ~/.envs/imgstore/bin/activate
-
 # install imgstore
 pip install imgstore
 ```
-
 
 ## Install in Mac OS X
 
