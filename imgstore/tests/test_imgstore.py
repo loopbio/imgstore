@@ -435,11 +435,13 @@ def test_store_frame_metadata(tmpdir):
     d.close()
 
 
-def test_videoimgstore_mp4():
+@pytest.mark.parametrize("seek", [True, False])
+def test_videoimgstore_mp4(seek):
     L = 16
     SZ = 512
 
-    d = stores.new_for_filename(os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml'))
+    d = stores.new_for_filename(os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml'),
+                                seek=seek)
     assert d.frame_max == 178
     assert d.frame_min == 0
     assert d.chunks == [0, 1]
