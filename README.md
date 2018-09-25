@@ -57,7 +57,6 @@ img, (frame_number, frame_timestamp) = store.get_image(store.frame_max)
 print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
 ```
 
-
 ## Extracting frames: frame index vs frame number
 
 Stores maintain two separate and distinct concepts, 'frame number', which
@@ -71,6 +70,18 @@ class ImgStore
 ```
 
 where 'frame index' OR 'frame number' can be passed.
+
+
+# Command line tools
+
+Some simple tools for creating, converting and viewing imgstores are provided
+
+* `imgstore-view /path/to/store`
+  view an imgstore
+* `imgstore-save --format 'avc1/mp4' --source /path/to/input.mp4 /path/to/store/to/save`
+ * `--source` if omitted will be the first webcam
+* `imgstore-test`
+  run extensive tests to check opencv build has mp4 support and trustworthy encoding/decoding
 
 
 # Install
