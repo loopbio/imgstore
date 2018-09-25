@@ -141,3 +141,9 @@ pip install imgstore
 You should always run the command `imgstore-test` after installing imgstore. If your
 environment is working correctly you should see a lot of text printed, followed by the
 text `==== 66 passed, ..... ======`
+
+#### Release Checklist
+
+* test with GPL opencv/ffmpeg
+* test with LGPL opencv/ffmpeg
+* test with Python2.7 and Python3
