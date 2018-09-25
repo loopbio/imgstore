@@ -945,8 +945,8 @@ class VideoImgStore(_ImgStore):
         if fmt == 'mjpeg':
             fmt = 'mjpeg/avi'
 
-        # default to no seek
-        seek = kwargs.pop('seek', None)
+        # default to seeking enable
+        seek = kwargs.pop('seek', True)
 
         if kwargs['mode'] == 'w':
             imgshape = kwargs['imgshape']
