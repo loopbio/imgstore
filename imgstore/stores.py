@@ -1027,7 +1027,7 @@ class VideoImgStore(_ImgStore):
             if (idx - self._chunk_current_frame_idx) != 1:
                 self._cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), idx)
         else:
-            if idx < self._chunk_current_frame_idx:
+            if idx <= self._chunk_current_frame_idx:
                 self._load_chunk(self._chunk_n, _force=True)
 
             i = self._chunk_current_frame_idx + 1

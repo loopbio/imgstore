@@ -658,8 +658,8 @@ def test_videoseek_extensive(fmt, tmpdir):
             t = time.time()
             d.add_image(_build_img(i), i, t)
 
-    r = np.random.RandomState(42)
-    fns = r.randint(low=0, high=F+1, size=int(S_PCT * F))
+    r = np.random.RandomState(0)
+    fns = r.randint(low=0, high=F, size=int(S_PCT * F))
 
     with stores.new_for_filename(tdir) as d:
         for f in fns:
