@@ -799,6 +799,8 @@ class DirectoryImgStore(_ImgStore):
     _cv2_fmts = {'tif', 'png', 'jpg', 'ppm', 'pgm', 'bmp'}
     _raw_fmts = {'npy', 'bpk'}
 
+    _DEFAULT_CHUNKSIZE = 200
+
     def __init__(self, **kwargs):
 
         self._chunk_cdir = ''
@@ -812,7 +814,7 @@ class DirectoryImgStore(_ImgStore):
         self._format = kwargs.pop('format', None)
         if kwargs['mode'] == 'w':
             if 'chunksize' not in kwargs:
-                kwargs['chunksize'] = 100
+                kwargs['chunksize'] = self._DEFAULT_CHUNKSIZE
             if self._format is None:
                 raise ValueError('image format must be supplied')
             metadata = kwargs.get('metadata', {})
@@ -935,6 +937,8 @@ class VideoImgStore(_ImgStore):
                  'h264/mkv': FourCC('H', '2', '6', '4'),
                  'avc1/mp4': FourCC('a', 'v', 'c', '1')}
 
+    _DEFAULT_CHUNKSIZE = 10000
+
     def __init__(self, **kwargs):
 
         self._cap = None
@@ -952,7 +956,7 @@ class VideoImgStore(_ImgStore):
             imgshape = kwargs['imgshape']
 
             if 'chunksize' not in kwargs:
-                kwargs['chunksize'] = 500
+                kwargs['chunksize'] = self._DEFAULT_CHUNKSIZE
 
             try:
                 self._codec = self._cv2_fmts[fmt]
