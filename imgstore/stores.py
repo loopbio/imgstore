@@ -1087,7 +1087,8 @@ class VideoImgStore(_ImgStore):
             log.debug('opening %s chunk %d frame_idx %d' % (capfn, chunk_n, frame_n))
 
         try:
-            cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), frame_n)
+            if frame_n > 0:
+                cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), frame_n)
             _, img = cap.read()
             return img
         finally:
