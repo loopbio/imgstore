@@ -43,6 +43,7 @@ STORE_LOCK_FILENAME = '.lock'
 
 _VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
+_VERBOSE_VERY = False  # overrides the other and prints all logs to stdout
 
 
 def _extract_store_metadata(full_path):
@@ -90,7 +91,19 @@ class _ImgStore(object):
         self.frame_count = 0
         self.frame_time = np.nan
 
+        class _Log:
+
+            @staticmethod
+            def info(msg):
+                print(msg)
+
+            debug = info
+            warn = info
+
         self._log = logging.getLogger('imgstore')
+        if _VERBOSE_VERY:
+            _VERBOSE_DEBUG_GETS = _VERBOSE_DEBUG_CHUNKS = True
+            self._log = _Log
 
         self._chunk_n = 0
         self._chunk_n_and_chunk_paths = ()
@@ -1067,8 +1080,9 @@ class VideoImgStore(_ImgStore):
         # noinspection PyArgumentList
         cap = cv2.VideoCapture(capfn)
 
-        log = logging.getLogger('loopb.imgstore')
-        log.debug('opending %s chunk %d frame_idx %d' % (capfn, chunk_n, frame_n))
+        if _VERBOSE_DEBUG_CHUNKS:
+            log = logging.getLogger('imgstore')
+            log.debug('opening %s chunk %d frame_idx %d' % (capfn, chunk_n, frame_n))
 
         try:
             cap.set(getattr(cv2, "CAP_PROP_POS_FRAMES", 1), frame_n)
