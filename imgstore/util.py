@@ -217,13 +217,19 @@ def main_saver():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('dest', nargs=1)
+    parser.add_argument('--source', type=str, default=0,
+                        metavar='PATH',
+                        help='path to a file to convert to an imgstore')
     parser.add_argument('--format',
                         choices=get_supported_formats(), default='mjpeg')
     args = parser.parse_args()
 
     # noinspection PyArgumentList
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(args.source)
     _, img = cap.read()
+
+    if img is None:
+        parser.error('could not open source: %s' % args.source)
 
     path = args.dest[0]
     if os.path.exists(path):
