@@ -945,7 +945,7 @@ class VideoImgStore(_ImgStore):
         if fmt == 'mjpeg':
             fmt = 'mjpeg/avi'
 
-        # keep compat with VideoImgStoreFFMPEG
+        # default to no seek
         seek = kwargs.pop('seek', None)
 
         if kwargs['mode'] == 'w':
@@ -971,7 +971,9 @@ class VideoImgStore(_ImgStore):
 
         self._supports_seeking = seek
         if self._supports_seeking:
-            self._log.info('seeking is enabled on store')
+            self._log.info('seeking enabled on store')
+        else:
+            self._log.info('seeking NOT enabled on store (will fallback to sequential reading)')
 
         if self._mode == 'r':
             imgshape = self._metadata['imgshape']
