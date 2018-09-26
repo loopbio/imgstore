@@ -494,6 +494,10 @@ class _ImgStore(object):
     def duration(self):
         return self._tN - self._t0
 
+    @property
+    def mode(self):
+        return self._mode
+
     @staticmethod
     def _extract_only_frame(basedir, chunk_n, frame_n, smd):
         raise NotImplementedError
