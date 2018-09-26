@@ -74,7 +74,7 @@ print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
 ## Extracting frames: frame index vs frame number
 
 Stores maintain two separate and distinct concepts, 'frame number', which
-is any integer vallue associated with a single frame, and 'frame index', which is numbered
+is any integer value associated with a single frame, and 'frame index', which is numbered
 from 0 to the number of frames in the store. This difference is visible in the API with
 
 ```python
@@ -107,7 +107,7 @@ We also recommend installing *IMGStore* from conda
 
 `$ conda install imgstore`
 
-After installing imgstore from any location, you should check it's tests pass to guarentee that
+After installing imgstore from any location, you should check it's tests pass to guarantee that
 you have a trustworthy OpenCV version
 
 ## Installing from source
@@ -128,6 +128,10 @@ source ~/.envs/imgstore/bin/activate
 # install imgstore
 pip install imgstore
 ```
+
+Note: If you install from pypi you have to that you have to ensure that opencv is correctly
+installed and has the required functionality (such as mp4 write support if required). Remember
+to run the tests `imgstore-test` after installing from pypi.
 
 ## Install in Mac OS X
 
@@ -161,3 +165,8 @@ text `==== 66 passed, ..... ======`
 * test with GPL opencv/ffmpeg
 * test with LGPL opencv/ffmpeg
 * test with Python2.7 and Python3
+* `git clean -dfx`
+* `python setup.py sdist bdist_wheel`
+* `twine upload --repository-url https://test.pypi.org/legacy/ dist/*`
+* (test with pip, new env)
+  * `pip install --index-url https://test.pypi.org/simple/ imgstore`
