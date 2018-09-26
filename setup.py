@@ -4,22 +4,20 @@
 # Authors: John Stowers <john@loopbio.com>, Santi Villalba <santi@loopbio.com>
 # Licence: BSD 3 clause
 
+import os.path as op
 from setuptools import setup, find_packages
 
-# Make pypi rst-happy
-try:
-    import pypandoc
-    long_description = pypandoc.convert_file('README.md', 'rst')
-except (IOError, ImportError):
-    pypandoc = None
-    long_description = open('README.md').read()
+this_directory = op.abspath(op.dirname(__file__))
+with open(op.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name='imgstore',
     license='BSD 3 clause',
     description='IMGStore houses your video frames',
     long_description=long_description,
-    version='0.2.0-rc.1',
+    long_description_content_type='text/markdown',
+    version='0.2.0-rc.2',
     url='https://github.com/loopbio/imgstore',
     author='John Stowers, Santi Villalba',
     author_email='john@loopbio.com, santi@loopbio.com',
