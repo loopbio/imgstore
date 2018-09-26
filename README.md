@@ -7,11 +7,25 @@ through recordings from hours to weeks in duration. It supports compressed and u
 Imgstore allows reading (and writing) videos recorded with
 loopbio's [Motif](http://loopbio.com/recording/) recording system.
 
-# The Concept
+## Introduction
+
+### The Concept
 
 Video data is broken into chunks, which can be individual video files `VideoImgStore`, or
 a directory full of images `DirectoryImgStore`. The format of the chunks determines if the store is
 compressed, uncompressed, lossless or lossy.
+
+### Basic API
+
+There are only a few public API entry points exposed
+
+ * `new_for_filename(path)` - Open a store for reading
+ * `new_for_format(format, path, **kwargs)`
+    * Open a store for writing
+    * You also need to pass `imgshape=` and `imgdtype`
+    * Note: `imgshape` is the array shape, i.e. `(h,w,d)` and not `(w,h)`
+ * `get_supported_formats()` - list supports formats (remember to test after install)
+ * `extract_only_frame(path, frame_index)` - extract a single frame at given *index* from file
 
 ## Example: Write a store
 

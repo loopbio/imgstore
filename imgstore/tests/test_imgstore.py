@@ -130,8 +130,7 @@ def test_all(tmpdir, fmt):
         fns.append(i)
     d.close()
 
-    d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME),
-                                basedir=tdir, mode='r')
+    d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME), mode='r')
 
     assert d.user_metadata['timezone'] == 'Europe/Austria'
 
@@ -319,6 +318,10 @@ def test_extract_only(loglevel_debug, fmt, tmpdir):
 def test_extract_only_motif(loglevel_debug):
     full_path = os.path.join(TEST_DATA_DIR, 'store_mp4', 'metadata.yaml')
     img = stores.extract_only_frame(full_path, 42)
+    assert decode_image(ensure_color(img)[:, :, 0]) == 42
+
+    basedir = os.path.join(TEST_DATA_DIR, 'store_mp4')
+    img = stores.extract_only_frame(basedir, 42)
     assert decode_image(ensure_color(img)[:, :, 0]) == 42
 
 
@@ -668,3 +671,87 @@ def test_videoseek_extensive(loglevel_debug, fmt, seek, tmpdir):
         for f in fns:
             img, _ = d.get_image(frame_number=f)
             assert _decode_image(img) == f
+
+
+def test_new_apis(tmpdir):
+    p = os.path.join(TEST_DATA_DIR, 'store_mp4')
+    fullp = os.path.join(p, stores.STORE_MD_FILENAME)
+
+    # new_for_filename (read)
+
+    # read pass both paths
+    with pytest.raises(ValueError):
+        stores.new_for_filename(p, basedir=p)
+
+    # read pass no path
+    with pytest.raises(ValueError):
+        stores.new_for_filename(None)
+
+    # read pass path=basedir
+    d = stores.new_for_filename(p)
+    assert d.full_path == fullp
+    assert d.mode == 'r'
+
+    # read pass path=fullpath
+    d = stores.new_for_filename(fullp)
+    assert d.full_path == fullp
+    assert d.mode == 'r'
+
+    # read pass basedir=basedir
+    d = stores.new_for_filename(None, basedir=p)
+    assert d.full_path == fullp
+    assert d.mode == 'r'
+
+    with pytest.raises(ValueError):
+        # read pass basedir=fullpath
+        d = stores.new_for_filename(None, basedir=fullp)
+
+    # new_for_format (read)
+
+    d = stores.new_for_format(fmt=None, path=None, mode='r', basedir=p)
+    assert d.full_path == fullp
+    assert d.mode == 'r'
+
+    d = stores.new_for_format(fmt=None, path=p, mode='r')
+    assert d.full_path == fullp
+    assert d.mode == 'r'
+
+    d = stores.new_for_format(fmt=None, path=fullp, mode='r')
+    assert d.full_path == fullp
+    assert d.mode == 'r'
+
+    # == new_for_format (write)
+
+    # read pass no path
+    with pytest.raises(ValueError):
+        stores.new_for_format(fmt=None, mode='r')
+
+    # write pass path=basedir
+    p = tmpdir.mkdir('a').strpath
+    fullp = os.path.join(p, stores.STORE_MD_FILENAME)
+    d = stores.new_for_format(fmt='npy', path=p, imgshape=(10, 10), imgdtype=np.uint8)
+    assert d.full_path == fullp
+    assert d.mode == 'w'
+    d.close()
+
+    # write pass path=fullpath
+    p = tmpdir.mkdir('b').strpath
+    fullp = os.path.join(p, stores.STORE_MD_FILENAME)
+    d = stores.new_for_format(fmt='npy', path=fullp, imgshape=(10, 10), imgdtype=np.uint8)
+    assert d.full_path == fullp
+    assert d.mode == 'w'
+    d.close()
+
+    # write pass basedir=basedir (API/back compat)
+    p = tmpdir.mkdir('c').strpath
+    fullp = os.path.join(p, stores.STORE_MD_FILENAME)
+    d = stores.new_for_format(fmt='npy', basedir=p, imgshape=(10, 10), imgdtype=np.uint8)
+    assert d.full_path == fullp
+    assert d.mode == 'w'
+    d.close()
+
+    with pytest.raises(ValueError):
+        # write pass basedir=fullpath
+        p = tmpdir.mkdir('d').strpath
+        fullp = os.path.join(p, stores.STORE_MD_FILENAME)
+        d = stores.new_for_format(fmt='npy', basedir=fullp, imgshape=(10, 10), imgdtype=np.uint8)

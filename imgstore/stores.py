@@ -1138,20 +1138,46 @@ class VideoImgStore(_ImgStore):
         self._chunk_n += 1
 
 
-def new_for_filename(path, **kwargs):
-    if path.endswith(STORE_MD_FILENAME) and (os.path.basename(path) == STORE_MD_FILENAME):
+def _parse_basedir_fullpath(path, basedir, read):
+    # the API is not so clean that we support both path and basedir, but we have to keep
+    # backwards compatibility as best as possible
+
+    if path and basedir:
+        raise ValueError('path and basedir are mutually exclusive')
+
+    if basedir:
+        if basedir.endswith(STORE_MD_FILENAME) and (os.path.basename(basedir) == STORE_MD_FILENAME):
+            raise ValueError('basedir should be a directory (not a file ending with %s)' % STORE_MD_FILENAME)
+        return basedir, os.path.join(basedir, STORE_MD_FILENAME)
+
+    if path and path.endswith(STORE_MD_FILENAME) and (os.path.basename(path) == STORE_MD_FILENAME):
         basedir = os.path.dirname(path)
         fullpath = path
-    elif os.path.isdir(path) and os.path.exists(os.path.join(path, STORE_MD_FILENAME)):
-        basedir = path
-        fullpath = os.path.join(path, STORE_MD_FILENAME)
+    elif path:
+        if read:
+            if os.path.isdir(path) and os.path.exists(os.path.join(path, STORE_MD_FILENAME)):
+                basedir = path
+                fullpath = os.path.join(path, STORE_MD_FILENAME)
+            else:
+                raise ValueError('path does not exist')
+        else:
+            # does not end with STORE_MD_FILENAME
+            basedir = path
+            fullpath = os.path.join(path, STORE_MD_FILENAME)
     else:
         raise ValueError('should be a path to a store %s file or a directory containing one' % STORE_MD_FILENAME)
 
+    return basedir, fullpath
+
+
+def new_for_filename(path, **kwargs):
     if 'mode' not in kwargs:
         kwargs['mode'] = 'r'
-    if 'basedir' not in kwargs:
-        kwargs['basedir'] = basedir
+
+    basedir, fullpath = _parse_basedir_fullpath(path, kwargs.pop('basedir', None),
+                                                read=kwargs.get('mode') == 'r')
+
+    kwargs['basedir'] = basedir
 
     with open(fullpath, 'rt') as f:
         clsname = yaml.load(f)[STORE_MD_KEY]['class']
@@ -1169,18 +1195,30 @@ def new_for_filename(path, **kwargs):
     return cls(**kwargs)
 
 
-def new_for_format(fmt, **kwargs):
+def new_for_format(fmt, path=None, **kwargs):
     if 'mode' not in kwargs:
         kwargs['mode'] = 'w'
+
+    if kwargs.get('mode') == 'r':
+        return new_for_filename(path, **kwargs)
+
+    # we are writing mode
+    basedir, _ = _parse_basedir_fullpath(path, kwargs.pop('basedir', None),
+                                         read=kwargs.get('mode') == 'r')
+    kwargs['basedir'] = basedir
+
     for cls in (DirectoryImgStore, VideoImgStore):
         if cls.supports_format(fmt):
             kwargs['format'] = fmt
             return cls(**kwargs)
-    raise ValueError('store class not found which supports format %s' % fmt)
+    raise ValueError("store class not found which supports format '%s'" % fmt)
 
 
 def extract_only_frame(path, frame_index):
-    smd = _extract_store_metadata(path)
+
+    _, fullpath = _parse_basedir_fullpath(path, None, True)
+
+    smd = _extract_store_metadata(fullpath)
     clsname = smd['class']
 
     if clsname == 'VideoImgStoreFFMPEG':
@@ -1192,7 +1230,7 @@ def extract_only_frame(path, frame_index):
     except KeyError:
         raise ValueError('store class %s not supported' % clsname)
 
-    return cls.extract_only_frame(full_path=path, frame_index=frame_index, _smd=smd)
+    return cls.extract_only_frame(full_path=fullpath, frame_index=frame_index, _smd=smd)
 
 
 def get_supported_formats():
