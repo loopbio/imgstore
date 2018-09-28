@@ -157,6 +157,7 @@ class _ImgStore(object):
             allmd = yaml.load(f)
         smd = allmd.pop(STORE_MD_KEY)
 
+        self._metadata = smd
         self._user_metadata.update(allmd)
 
         if smd['class'] == 'VideoImgStoreFFMPEG':
@@ -182,7 +183,6 @@ class _ImgStore(object):
         self._imgdtype = smd['imgdtype']
         self._chunksize = int(smd['chunksize'])
         self._encoding = smd['encoding']
-        self._metadata = smd
 
         # synthesize a created_date from old format stores
         if 'created_utc' not in smd:
