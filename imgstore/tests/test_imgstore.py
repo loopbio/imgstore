@@ -755,3 +755,22 @@ def test_new_apis(tmpdir):
         p = tmpdir.mkdir('d').strpath
         fullp = os.path.join(p, stores.STORE_MD_FILENAME)
         d = stores.new_for_format(fmt='npy', basedir=fullp, imgshape=(10, 10), imgdtype=np.uint8)
+
+
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'avc1/mp4'])
+def test_odd_sized(fmt, tmpdir):
+    img = np.zeros((199, 199, 3), dtype=np.uint8)
+    d = stores.new_for_format(fmt,
+                              basedir=tmpdir.strpath,
+                              imgshape=img.shape,
+                              imgdtype=img.dtype)
+    for i in range(10):
+        d.add_image(img, i, 0.)
+    d.close()
+
+    d = stores.new_for_filename(d.full_path)
+    _img, _ = d.get_next_image()
+
+    assert _img.shape == d.image_shape
+
+
