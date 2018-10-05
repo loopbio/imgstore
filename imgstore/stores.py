@@ -1159,7 +1159,7 @@ def _parse_basedir_fullpath(path, basedir, read):
                 basedir = path
                 fullpath = os.path.join(path, STORE_MD_FILENAME)
             else:
-                raise ValueError('path does not exist')
+                raise ValueError("path '%s' does not exist" % path)
         else:
             # does not end with STORE_MD_FILENAME
             basedir = path
