@@ -58,8 +58,9 @@ class _ImgStore(object):
 
     FRAME_MD = ('frame_number', 'frame_time')
 
+    # noinspection PyShadowingBuiltins
     def __init__(self, basedir, mode, imgshape=None, imgdtype=None, chunksize=None, metadata=None,
-                 encoding=None, write_encode_encoding=None):
+                 encoding=None, write_encode_encoding=None, format=None):
         if mode not in self._supported_modes:
             raise ValueError('mode not supported')
 
@@ -73,6 +74,7 @@ class _ImgStore(object):
         self._imgdtype = ''
         self._chunksize = 0
         self._encoding = None
+        self._format = None
         self._codec_proc = ImageCodecProcessor()  # used in read and write mode
         self._decode_image = None
         self._encode_image = None
@@ -113,10 +115,10 @@ class _ImgStore(object):
         self._extra_data_fp = self._extra_data_fn = None
 
         if mode == 'w':
-            if None in (imgshape, imgdtype, chunksize):
-                raise ValueError('imgshape, imgdtype, chunksize must not be None')
+            if None in (imgshape, imgdtype, chunksize, format):
+                raise ValueError('imgshape, imgdtype, chunksize, format must not be None')
             self._frame_n = 0
-            self._init_write(imgshape, imgdtype, chunksize, metadata, encoding, write_encode_encoding)
+            self._init_write(imgshape, imgdtype, chunksize, metadata, encoding, write_encode_encoding, format)
         elif mode == 'r':
             # the index is a dict of tuples -> chunk_n
             # each tuple describes a contiguous series of framenumbers
@@ -183,6 +185,7 @@ class _ImgStore(object):
         self._imgdtype = smd['imgdtype']
         self._chunksize = int(smd['chunksize'])
         self._encoding = smd['encoding']
+        self._format = smd['format']
 
         # synthesize a created_date from old format stores
         if 'created_utc' not in smd:
@@ -232,7 +235,7 @@ class _ImgStore(object):
         self._codec_proc.set_default_code(self._encoding)
         self._decode_image = self._codec_proc.autoconvert
 
-    def _init_write(self, imgshape, imgdtype, chunksize, metadata, encoding, write_encode_encoding):
+    def _init_write(self, imgshape, imgdtype, chunksize, metadata, encoding, write_encode_encoding, fmt):
         for e in (encoding, write_encode_encoding):
             if e:
                 if not self._codec_proc.check_code(e):
@@ -241,6 +244,8 @@ class _ImgStore(object):
         # if encoding is unset, autoconvert is no-op
         self._codec_proc.set_default_code(write_encode_encoding)
         self._encode_image = self._codec_proc.autoconvert
+
+        imgshape = self._calculte_written_image_shape(imgshape, fmt)
 
         if write_encode_encoding:
             # as we always encode to color
@@ -252,6 +257,7 @@ class _ImgStore(object):
         self._imgshape = imgshape
         self._imgdtype = imgdtype
         self._chunksize = chunksize
+        self._format = fmt
 
         self._uuid = uuid.uuid4().hex
         # because fuck you python that utcnow is naieve. kind of fixed in python >3.2
@@ -261,6 +267,7 @@ class _ImgStore(object):
         store_md = {'imgshape': imgshape,
                     'imgdtype': self._imgdtype,
                     'chunksize': chunksize,
+                    'format': fmt,
                     'class': self.__class__.__name__,
                     'version': self._version,
                     'encoding': encoding,
@@ -309,6 +316,10 @@ class _ImgStore(object):
     def _save_image_metadata(self, frame_number, frame_time):
         self._chunk_md['frame_number'].append(frame_number)
         self._chunk_md['frame_time'].append(frame_time)
+
+    # noinspection PyShadowingBuiltins
+    def _calculte_written_image_shape(self, imgshape, fmt):
+        return imgshape
 
     @classmethod
     def supported_formats(cls):
@@ -815,21 +826,12 @@ class DirectoryImgStore(_ImgStore):
         # keep compat with VideoImgStoreFFMPEG
         kwargs.pop('seek', None)
 
-        self._format = kwargs.pop('format', None)
         if kwargs['mode'] == 'w':
             if 'chunksize' not in kwargs:
                 kwargs['chunksize'] = self._DEFAULT_CHUNKSIZE
-            if self._format is None:
-                raise ValueError('image format must be supplied')
-            metadata = kwargs.get('metadata', {})
-            metadata[STORE_MD_KEY] = {'format': self._format}
-            kwargs['metadata'] = metadata
             kwargs['encoding'] = kwargs.pop('encoding', None)
 
         _ImgStore.__init__(self, **kwargs)
-
-        if self._mode == 'r':
-            self._format = self._metadata['format']
 
         self._color = (self._imgshape[-1] == 3) & (len(self._imgshape) == 3)
 
@@ -948,10 +950,10 @@ class VideoImgStore(_ImgStore):
         self._cap = None
         self._capfn = None
 
-        fmt = kwargs.pop('format', None)
+        fmt = kwargs.get('format')
         # backwards compat
         if fmt == 'mjpeg':
-            fmt = 'mjpeg/avi'
+            kwargs['format'] = fmt = 'mjpeg/avi'
 
         # default to seeking enable
         seek = kwargs.pop('seek', True)
@@ -970,8 +972,7 @@ class VideoImgStore(_ImgStore):
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
 
             metadata = kwargs.get('metadata', {})
-            metadata[STORE_MD_KEY] = {'format': fmt,
-                                      'extension': '.%s' % fmt.split('/')[1]}
+            metadata[STORE_MD_KEY] = {'extension': '.%s' % fmt.split('/')[1]}
             kwargs['metadata'] = metadata
             kwargs['encoding'] = kwargs.pop('encoding', None)
 
@@ -986,6 +987,12 @@ class VideoImgStore(_ImgStore):
         if self._mode == 'r':
             imgshape = self._metadata['imgshape']
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
+
+    def _calculte_written_image_shape(self, imgshape, fmt):
+        _imgshape = list(imgshape)
+        _imgshape[0] = _imgshape[0] - (_imgshape[0] % 2)
+        _imgshape[1] = _imgshape[1] - (_imgshape[1] % 2)
+        return tuple(_imgshape)
 
     @staticmethod
     def _get_chunk_extension(metadata):
