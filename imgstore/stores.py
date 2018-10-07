@@ -1032,7 +1032,12 @@ class VideoImgStore(_ImgStore):
         if new is not None:
             fn = os.path.join(self._basedir, '%06d%s' % (new, self._ext))
             h, w = self._imgshape[:2]
-            self._cap = cv2.VideoWriter(fn, self._codec, 25, (w, h), isColor=True)
+            self._cap = cv2.VideoWriter(filename=fn,
+                                        apiPreference=cv2.CAP_FFMPEG,
+                                        fourcc=self._codec,
+                                        fps=25,
+                                        frameSize=(w, h),
+                                        isColor=True)
             self._capfn = fn
             self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % new))
 
