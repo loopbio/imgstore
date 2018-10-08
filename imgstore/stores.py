@@ -245,7 +245,7 @@ class _ImgStore(object):
         self._codec_proc.set_default_code(write_encode_encoding)
         self._encode_image = self._codec_proc.autoconvert
 
-        imgshape = self._calculte_written_image_shape(imgshape, fmt)
+        write_imgshape = self._calculate_written_image_shape(imgshape, fmt)
 
         if write_encode_encoding:
             # as we always encode to color
@@ -264,7 +264,7 @@ class _ImgStore(object):
         self._created_utc = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
         self._timezone_local = tzlocal.get_localzone()
 
-        store_md = {'imgshape': imgshape,
+        store_md = {'imgshape': write_imgshape,
                     'imgdtype': self._imgdtype,
                     'chunksize': chunksize,
                     'format': fmt,
@@ -317,8 +317,8 @@ class _ImgStore(object):
         self._chunk_md['frame_number'].append(frame_number)
         self._chunk_md['frame_time'].append(frame_time)
 
-    # noinspection PyShadowingBuiltins
-    def _calculte_written_image_shape(self, imgshape, fmt):
+    # noinspection PyShadowingBuiltins,PyMethodMayBeStatic
+    def _calculate_written_image_shape(self, imgshape, fmt):
         return imgshape
 
     @classmethod
@@ -988,10 +988,11 @@ class VideoImgStore(_ImgStore):
             imgshape = self._metadata['imgshape']
             self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
 
-    def _calculte_written_image_shape(self, imgshape, fmt):
+    def _calculate_written_image_shape(self, imgshape, fmt):
         _imgshape = list(imgshape)
-        _imgshape[0] = _imgshape[0] - (_imgshape[0] % 2)
-        _imgshape[1] = _imgshape[1] - (_imgshape[1] % 2)
+        # bitwise and with -2 truncates downwards to even
+        _imgshape[0] = int(_imgshape[0]) & -2
+        _imgshape[1] = int(_imgshape[1]) & -2
         return tuple(_imgshape)
 
     @staticmethod
