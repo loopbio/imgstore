@@ -59,7 +59,7 @@ class _ImgStore(object):
     FRAME_MD = ('frame_number', 'frame_time')
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, basedir, mode, imgshape=None, imgdtype=None, chunksize=None, metadata=None,
+    def __init__(self, basedir, mode, imgshape=None, imgdtype=np.uint8, chunksize=None, metadata=None,
                  encoding=None, write_encode_encoding=None, format=None):
         if mode not in self._supported_modes:
             raise ValueError('mode not supported')
@@ -249,7 +249,7 @@ class _ImgStore(object):
 
         if write_encode_encoding:
             # as we always encode to color
-            imgshape = [imgshape[0], imgshape[1], 3]
+            write_imgshape = [write_imgshape[0], write_imgshape[1], 3]
 
         if not os.path.exists(self._basedir):
             os.makedirs(self._basedir)
