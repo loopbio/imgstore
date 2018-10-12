@@ -110,10 +110,13 @@ We also recommend installing *IMGStore* from conda
 After installing imgstore from any location, you should check it's tests pass to guarantee that
 you have a trustworthy OpenCV version
 
-## Installing from source
+## Installing from source and with all dependencies
 
  * git clone this repository
- * `conda env create -f environment.yaml`
+ * `conda env create -f environment.yml`
+
+If you are on MacOSX
+ * `conda env create -f environment-mac.yml`
 
 ## Installing from pypi
 
@@ -132,27 +135,6 @@ pip install imgstore
 Note: If you install from pypi you have to that you have to ensure that opencv is correctly
 installed and has the required functionality (such as mp4 write support if required). Remember
 to run the tests `imgstore-test` after installing from pypi.
-
-## Install in Mac OS X
-
-Install [Homebrew](https://brew.sh/), you probably have to install Xcode first.
-
-Then run:
-
-```sh
-PATH="/usr/local/bin:$PATH"
-
-brew install python
-
-brew tap homebrew/science
-brew install opencv3 --with-ffmpeg
-
-# follow the instructions at the end of the install
-echo /usr/local/opt/opencv3/lib/python2.7/site-packages >> /usr/local/lib/python2.7/site-packages/opencv3.pth
-
-# install imgstore
-pip install imgstore
-```
 
 ## Post install testing
 
