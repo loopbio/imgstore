@@ -33,12 +33,12 @@ def _cvt_color(img, code, ensure_copy=True):
         return ValueError("cvtColor code not understood: %s" % code)
 
 
-def ensure_grayscale(img):
-    return _cvt_color(img, cv2.COLOR_BGR2GRAY, ensure_copy=False)
+def ensure_grayscale(img, ensure_copy=False):
+    return _cvt_color(img, cv2.COLOR_BGR2GRAY, ensure_copy=ensure_copy)
 
 
-def ensure_color(img):
-    return _cvt_color(img, cv2.COLOR_GRAY2BGR, ensure_copy=False)
+def ensure_color(img, ensure_copy=False):
+    return _cvt_color(img, cv2.COLOR_GRAY2BGR, ensure_copy=ensure_copy)
 
 
 class ImageCodecProcessor(object):
