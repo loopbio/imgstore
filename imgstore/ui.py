@@ -28,13 +28,9 @@ def get_screen_resolution():
                 out = subprocess.check_output(['system_profiler', 'SPDisplaysDataType'])
                 for l in out.splitlines():
                     _s = l.decode('utf-8')
-                    print("_", _s)
                     m = _re.match(_s)
                     if m:
                         resolution = m.groups()[0]
-                    if 'Resolution' in _s:
-                        if not m:
-                            print("ERROR regex fail '%r'" % _s)
             else:
                 out = subprocess.check_output(['xrandr'])
                 resolution_line = [l for l in out.splitlines() if '*' in l][0]
@@ -53,8 +49,6 @@ def get_and_parse_screen_resolution(scale=1.0, default=(1024, 768)):
     res = get_screen_resolution()
     _w, _h = default
 
-    print("RES: ", res)
- 
     if res:
         try:
             _w, _h = map(float, res.split('x'))
@@ -103,5 +97,5 @@ def new_window(name, size=None, expanded_ui=True, shape=None):
         cv2.namedWindow(name, WINDOW_AUTOSIZE | flags)
         sizestr = 'auto'
 
-    print("CREATED WINDOW ", sizestr)
+    print("CREATED WINDOW %s (from %r)" % (sizestr, size))
     return name, sizestr
