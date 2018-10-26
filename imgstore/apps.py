@@ -30,7 +30,7 @@ def main_viewer():
 
     store = new_for_filename(path)
 
-    new_window('imgstore', shape=store.image_shape)
+    new_window('imgstore', shape=store.image_shape, screen_relative_size=0.25)
 
     while True:
         try:

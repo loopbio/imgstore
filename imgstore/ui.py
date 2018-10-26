@@ -62,7 +62,7 @@ def get_and_parse_screen_resolution(scale=1.0, default=(1024, 768)):
     return int(w), int(h)
 
 
-def new_window(name, size=None, expanded_ui=True, shape=None):
+def new_window(name, size=None, expanded_ui=True, shape=None, screen_relative_size=0.75):
     if shape is not None:
         size = shape[1], shape[0]
 
@@ -73,7 +73,7 @@ def new_window(name, size=None, expanded_ui=True, shape=None):
         if (size[0] > 0) and (not np.isnan(size[0])):
 
             # create a resizable window but limit its size to 75% the screen size
-            sw, sh = get_and_parse_screen_resolution(scale=0.75, default=(1024, 768))
+            sw, sh = get_and_parse_screen_resolution(scale=screen_relative_size, default=(1024, 768))
 
             if np.isinf(size[0]):
                 w = sw
