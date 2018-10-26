@@ -27,9 +27,13 @@ def get_screen_resolution():
                 _re = re.compile(r"""^.*Resolution:\s*([\d\sx]+)""")
                 out = subprocess.check_output(['system_profiler', 'SPDisplaysDataType'])
                 for l in out.splitlines():
-                    m = _re.match(l.decode('utf-8'))
+                    _s = l.decode('utf-8')
+                    m = _re.match(_s)
                     if m:
                         resolution = m.groups()[0]
+                    if 'Resolution' in _s:
+                        if not m:
+                            print("ERROR regex fail '%r'" % _s)
             else:
                 out = subprocess.check_output(['xrandr'])
                 resolution_line = [l for l in out.splitlines() if '*' in l][0]
@@ -52,7 +56,9 @@ def get_and_parse_screen_resolution(scale=1.0, default=(1024, 768)):
         try:
             _w, _h = map(float, res.split('x'))
         except ValueError:
-            print ("ERROR splitting resolution string")
+            print("ERROR splitting resolution string")
+    else:
+        print("ERROR unable to get resolution")
 
     w = float(scale) * _w
     h = float(scale) * _h
