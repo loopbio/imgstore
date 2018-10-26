@@ -8,8 +8,8 @@ import os.path as op
 from setuptools import setup, find_packages
 
 this_directory = op.abspath(op.dirname(__file__))
-with open(op.join(this_directory, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+with open(op.join(this_directory, 'README.md'), 'rb') as f:
+    long_description = f.read().decode('UTF-8')
 
 setup(
     name='imgstore',
