@@ -97,5 +97,5 @@ def new_window(name, size=None, expanded_ui=True, shape=None):
         cv2.namedWindow(name, WINDOW_AUTOSIZE | flags)
         sizestr = 'auto'
 
-    print("CREATED WINDOW %s (from %r)" % (sizestr, size))
+    print("CREATED WINDOW %s:%s (from %r)" % (sizestr, flags, size))
     return name, sizestr
