@@ -1,7 +1,9 @@
+from __future__ import print_function, absolute_import
+
 import cv2
 
-
 from .stores import new_for_filename, get_supported_formats, new_for_format, STORE_MD_FILENAME
+from .ui import new_window
 
 
 def main_viewer():
@@ -27,6 +29,8 @@ def main_viewer():
         parser.error('path must be an imagestore directory')
 
     store = new_for_filename(path)
+
+    new_window('imgstore', shape=store.image_shape)
 
     while True:
         try:
