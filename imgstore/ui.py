@@ -27,7 +27,7 @@ def get_screen_resolution():
                 _re = re.compile(r"""^.*Resolution:\s*([\d\sx]+)""")
                 out = subprocess.check_output(['system_profiler', 'SPDisplaysDataType'])
                 for l in out.splitlines():
-                    m = _re.match(l)
+                    m = _re.match(l.decode('utf-8'))
                     if m:
                         resolution = m.groups()[0]
             else:
