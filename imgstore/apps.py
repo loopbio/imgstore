@@ -32,6 +32,14 @@ def main_viewer():
 
     new_window('imgstore', shape=store.image_shape, screen_relative_size=0.25)
 
+    # maybe this is only needed on MAC???
+    cv2.waitKey(1)
+    # disable autosize again
+    cv2.setWindowProperty('imgstore', cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_NORMAL)
+    # disable fullscreen again
+    cv2.setWindowProperty('imgstore', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+    cv2.waitKey(1)  # run event loop again
+
     while True:
         try:
             img, _ = store.get_next_image()
