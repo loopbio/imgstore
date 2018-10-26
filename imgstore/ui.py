@@ -28,6 +28,7 @@ def get_screen_resolution():
                 out = subprocess.check_output(['system_profiler', 'SPDisplaysDataType'])
                 for l in out.splitlines():
                     _s = l.decode('utf-8')
+                    print("_", _s)
                     m = _re.match(_s)
                     if m:
                         resolution = m.groups()[0]
@@ -52,6 +53,8 @@ def get_and_parse_screen_resolution(scale=1.0, default=(1024, 768)):
     res = get_screen_resolution()
     _w, _h = default
 
+    print("RES: ", res)
+ 
     if res:
         try:
             _w, _h = map(float, res.split('x'))
