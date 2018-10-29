@@ -15,6 +15,7 @@ class _Window(object):
         self.name = name
         self._flags = flags
         self._size = sizestr
+        self._set = False
 
     def __repr__(self):
         return "Window<'%s', flags=%s, sizestr=%s, mac=%s>" % (self.name, bin(self._flags),
@@ -25,19 +26,18 @@ class _Window(object):
 
     @property
     def size(self):
-        if x in self._size:
-            return map(int, self._size.split('x'))
+        if 'x' in self._size:
+            return tuple(map(int, self._size.split('x')))
         return None
 
     def imshow(self, *args, **kwargs):
-        # # maybe this is only needed on MAC???
-        # cv2.waitKey(1)
-        # # disable autosize again
-        # cv2.setWindowProperty('imgstore', cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_NORMAL)
-        # # disable fullscreen again
-        # cv2.setWindowProperty('imgstore', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-        # cv2.waitKey(1)  # run event loop again
         cv2.imshow(*args, **kwargs)
+        if _IS_MAC and not self._set:
+            sz = self.size
+            if sz is not None:
+                w, h = sz
+                cv2.resizeWindow(self.name, int(w), int(h))
+                self._set = True
 
     def waitKey(self, *args, **kwargs):
         return cv2.waitKey(*args, **kwargs)
