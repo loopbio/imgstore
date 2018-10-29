@@ -7,10 +7,40 @@ import subprocess
 import cv2
 import numpy as np
 
-WINDOW_NORMAL = getattr(cv2, 'WINDOW_NORMAL', 0)
-WINDOW_AUTOSIZE = getattr(cv2, 'WINDOW_AUTOSIZE', 1)
-
 _SCREEN_RESOLUTION = None
+_IS_MAC = sys.platform == 'darwin'
+
+class _Window(object):
+    def __init__(self, name, flags, sizestr):
+        self.name = name
+        self._flags = flags
+        self._size = sizestr
+
+    def __repr__(self):
+        return "Window<'%s', flags=%s, sizestr=%s, mac=%s>" % (self.name, bin(self._flags),
+                                                               self._size, _IS_MAC)
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def size(self):
+        if x in self._size:
+            return map(int, self._size.split('x'))
+        return None
+
+    def imshow(self, *args, **kwargs):
+        # # maybe this is only needed on MAC???
+        # cv2.waitKey(1)
+        # # disable autosize again
+        # cv2.setWindowProperty('imgstore', cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_NORMAL)
+        # # disable fullscreen again
+        # cv2.setWindowProperty('imgstore', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+        # cv2.waitKey(1)  # run event loop again
+        cv2.imshow(*args, **kwargs)
+
+    def waitKey(self, *args, **kwargs):
+        return cv2.waitKey(*args, **kwargs)
 
 
 def get_screen_resolution():
@@ -23,7 +53,7 @@ def get_screen_resolution():
         resolution = ''
 
         try:
-            if sys.platform == 'darwin':
+            if _IS_MAC:
                 _re = re.compile(r"""^.*Resolution:\s*([\d\sx]+)""")
                 out = subprocess.check_output(['system_profiler', 'SPDisplaysDataType'])
                 for l in out.splitlines():
@@ -66,9 +96,10 @@ def new_window(name, size=None, expanded_ui=True, shape=None, screen_relative_si
     if shape is not None:
         size = shape[1], shape[0]
 
-    flags = getattr(cv2, 'WINDOW_GUI_EXPANDED', 0) if expanded_ui else getattr(cv2, 'WINDOW_GUI_NORMAL', 16)
+    flags = cv2.WINDOW_GUI_EXPANDED if expanded_ui else cv2.WINDOW_GUI_NORMAL
     if size is not None:
-        cv2.namedWindow(name, WINDOW_NORMAL | flags)
+        flags = cv2.WINDOW_NORMAL | flags
+        cv2.namedWindow(name, flags)
 
         if (size[0] > 0) and (not np.isnan(size[0])):
 
@@ -94,8 +125,9 @@ def new_window(name, size=None, expanded_ui=True, shape=None, screen_relative_si
         else:
             sizestr = 'unknown'
     else:
-        cv2.namedWindow(name, WINDOW_AUTOSIZE | flags)
+        flags = cv2.WINDOW_AUTOSIZE | flags
+        cv2.namedWindow(name, flags)
         sizestr = 'auto'
 
-    print("CREATED WINDOW %s:%s (from %r)" % (sizestr, flags, size))
-    return name, sizestr
+    win = _Window(name, flags, sizestr)
+    return win

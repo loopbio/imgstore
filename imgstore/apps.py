@@ -30,15 +30,8 @@ def main_viewer():
 
     store = new_for_filename(path)
 
-    new_window('imgstore', shape=store.image_shape, screen_relative_size=0.25)
-
-    # maybe this is only needed on MAC???
-    cv2.waitKey(1)
-    # disable autosize again
-    cv2.setWindowProperty('imgstore', cv2.WND_PROP_AUTOSIZE, cv2.WINDOW_NORMAL)
-    # disable fullscreen again
-    cv2.setWindowProperty('imgstore', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-    cv2.waitKey(1)  # run event loop again
+    win = new_window('imgstore', shape=store.image_shape)
+    print("Created %r" % win)
 
     while True:
         try:
@@ -46,7 +39,7 @@ def main_viewer():
         except EOFError:
             break
 
-        cv2.imshow('imgstore', img)
+        win.imshow('imgstore', img)
 
         k = cv2.waitKey(int(1000. / args.fps)) & 0xFF
         if k == 27:
