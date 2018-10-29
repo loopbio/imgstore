@@ -32,6 +32,7 @@ class _Window(object):
 
     def imshow(self, *args, **kwargs):
         cv2.imshow(*args, **kwargs)
+        # Mac requires window size to be set after the first imshow
         if _IS_MAC and not self._set:
             sz = self.size
             if sz is not None:
