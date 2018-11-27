@@ -116,7 +116,7 @@ you have a trustworthy OpenCV version
 If you are on MacOSX
  * `conda env create -f environment-mac.yml`
 
-## Installing from pypi
+## Installing only IMGStore and using system dependencies
 
 We recommend installing *IMGStore* **dependencies** using the conda package manager, however
 it is possible to create a virtual env which uses your system OpenCV install. 
