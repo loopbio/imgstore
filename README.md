@@ -103,6 +103,8 @@ Some simple tools for creating, converting and viewing imgstores are provided
 writing mp4s. Loopbio provides [reliable conda OpenCV builds](http://blog.loopbio.com/conda-packages.html)
 in our conda channel, and we recommend using these.
 
+Once you have a conda environment with a recent and reliable OpenCV build, you can install IMGStore from pip
+
 `$ pip install imgstore`
 
 After installing imgstore from any location, you should check it's tests pass to guarantee that
