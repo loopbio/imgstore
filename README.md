@@ -118,8 +118,8 @@ If you are on MacOSX
 
 ## Installing from pypi
 
-We recommend installing *IMGStore* and its dependencies using the conda package manager, however
-it is possible to install using pip. We recommend first creating a new virtual environment 
+We recommend installing *IMGStore* **dependencies** using the conda package manager, however
+it is possible to create a virtual env which uses your system OpenCV install. 
 
 ```sh
 # generate virtual env
@@ -130,9 +130,9 @@ source ~/.envs/imgstore/bin/activate
 pip install imgstore
 ```
 
-Note: If you install from pypi you have to that you have to ensure that opencv is correctly
-installed and has the required functionality (such as mp4 write support if required). Remember
-to run the tests `imgstore-test` after installing from pypi.
+Note: If you install in this manner you have to ensure that opencv is correct
+and has the required functionality (such as mp4 write support if required). Remember
+to run the tests `imgstore-test` after installing.
 
 ## Post install testing
 
