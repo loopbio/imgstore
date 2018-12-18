@@ -269,6 +269,7 @@ def test_outoforder(tmpdir,  fmt, imgtype):
         '' if d.lossless else 'LOSSY '))
 
 
+@pytest.mark.xfail(strict=False)
 def test_create_and_times(loglevel_debug, tmpdir):
     import pytz
 
