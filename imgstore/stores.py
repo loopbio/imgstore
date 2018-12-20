@@ -111,6 +111,9 @@ class _ImgStore(object):
         self._chunk_n = 0
         self._chunk_n_and_chunk_paths = ()
 
+        # all chunks in the store [0,1,2, ... ]
+        self._chunks = []
+
         # file pointer and filename of a file which can be used to store additional data per frame
         # (this is only created if data is actually stored)
         self._extra_data_fp = self._extra_data_fn = None
@@ -379,6 +382,8 @@ class _ImgStore(object):
                 # empty chunk
                 continue
 
+            self._chunks.append(chunk_n)
+
             chunk_len = len(idx['frame_number'])
             self.frame_count += chunk_len
             self._t0 = min(self._t0, np.min(idx['frame_time']))
@@ -553,19 +558,21 @@ class _ImgStore(object):
             new = self._chunk_n + 1
             self._save_chunk(old, new)
             self._chunk_n = new
+            self._chunks.append(new)
 
         self.frame_count = self._frame_n
 
     def _get_next_framenumber_and_chunk_frame_idx(self):
-        if self.frame_number == self.frame_max:
-            raise EOFError
-
         idx = self._chunk_current_frame_idx + 1
         try:
             frame_number = self._chunk_index[idx]
         except IndexError:
             # open the next chunk
-            self._load_chunk(self._chunk_n + 1)
+            next_chunk = self._chunk_n + 1
+            if next_chunk not in self._chunks:
+                raise EOFError
+
+            self._load_chunk(next_chunk)
             # first frame is start of chunk
             idx = 0
             frame_number = self._chunk_index[idx]
@@ -725,6 +732,7 @@ class _ImgStore(object):
 
         self._chunk_n = 0
         self._chunk_n_and_chunk_paths = ()
+        self._chunks = []
 
         if self._extra_data_fp is not None:
             self._extra_data_fp.close()

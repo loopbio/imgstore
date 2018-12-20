@@ -775,3 +775,57 @@ def test_odd_sized(fmt, tmpdir):
     assert _img.shape == d.image_shape
 
 
+@pytest.mark.parametrize('chunksize', (2,100))
+def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize):
+    FNS = [6050, 6055, 6056, 0, 1, 2]
+
+    s = stores.new_for_format('npy',
+                              basedir=tmpdir.strpath,
+                              imgshape=(512,512),
+                              imgdtype=np.uint8,
+                              chunksize=chunksize)
+    for fn in FNS:
+        s.add_image(encode_image(fn, imgsize=512), fn, time.time())
+    s.close()
+
+    d = stores.new_for_filename(s.full_path)
+    assert d.frame_min == 0
+    assert d.frame_max == 6056
+    assert d.frame_count == 6
+
+    for fn in FNS:
+        frame, (frame_number, frame_timestamp) = d.get_next_image()
+        assert frame_number == fn
+        assert decode_image(frame) == fn
+
+    with pytest.raises(EOFError):
+        d.get_next_image()
+
+    # iter in reversed to make it more interesting
+    for fn in reversed(FNS):
+        frame, (frame_number, frame_timestamp) = d.get_image(fn, exact_only=True, frame_index=None)
+        assert frame_number == fn
+        assert decode_image(frame) == fn
+
+    for fn in reversed(FNS):
+        idx = FNS.index(fn)
+        frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True,
+                                                             frame_index=idx)
+        assert frame_number == fn
+        assert decode_image(frame) == fn
+
+    # seek to middle and then keep reading
+    fn = 6055
+    frame, (frame_number, frame_timestamp) = d.get_image(fn, exact_only=True, frame_index=None)
+    assert frame_number == fn
+    assert decode_image(frame) == fn
+
+    fn = 6056
+    frame, (frame_number, frame_timestamp) = d.get_next_image()
+    assert frame_number == fn
+    assert decode_image(frame) == fn
+
+    fn = 0
+    frame, (frame_number, frame_timestamp) = d.get_next_image()
+    assert frame_number == fn
+    assert decode_image(frame) == fn
