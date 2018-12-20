@@ -372,7 +372,7 @@ class _ImgStore(object):
             try:
                 idx = self._load_index(chunk_path)
             except IOError:
-                self._log.warning('missing index for chunk %s' % chunk_n)
+                self._log.warn('missing index for chunk %s' % chunk_n)
                 continue
 
             if not idx['frame_number']:
@@ -442,7 +442,7 @@ class _ImgStore(object):
         try:
             txt = json.dumps(data, cls=JsonCustomEncoder)
         except Exception:
-            self._log.warning('error writing extra data', exc_info=True)
+            self._log.warn('error writing extra data', exc_info=True)
             return
 
         if self._extra_data_fp is None:
