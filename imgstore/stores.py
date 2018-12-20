@@ -128,8 +128,8 @@ class _ImgStore(object):
             self._index = {}
             # for lookup by global index we also maintain a list of the chunk lengths
             self._index_chunklens = []  # [(chunk_n, chunk_len)]
-            # the chunk index is a list of framenumbers, the index of the
-            # framenumber is the position in the chunk
+            # the chunk index is a list of framenumbers for the currently loaded chunk,
+            # the index of the framenumber is the position in the chunk
             self._chunk_index = []
             self._init_read()
 
