@@ -834,6 +834,7 @@ class DirectoryImgStore(_ImgStore):
         kwargs.pop('videosize', None)
         # keep compat with VideoImgStoreFFMPEG
         kwargs.pop('seek', None)
+        kwargs.pop('gpu_id', None)
 
         if kwargs['mode'] == 'w':
             if 'chunksize' not in kwargs:
@@ -966,6 +967,8 @@ class VideoImgStore(_ImgStore):
 
         # default to seeking enable
         seek = kwargs.pop('seek', True)
+        # keep compat with VideoImgStoreFFMPEG
+        kwargs.pop('gpu_id', None)
 
         if kwargs['mode'] == 'w':
             imgshape = kwargs['imgshape']
