@@ -17,7 +17,8 @@ compressed, uncompressed, lossless or lossy.
 
 ### Basic API
 
-There are only a few public API entry points exposed
+There are only a few public API entry points exposed (most operations are
+done on `ImgStore` objects (see writing and reading examples below).
 
  * `new_for_filename(path)` - Open a store for reading
  * `new_for_format(format, path, **kwargs)`
@@ -50,6 +51,15 @@ for i in range(40):
 
 store.close()
 ```
+
+You can also add additional (JSON serialable) data at any time, and this will be stored
+with a reference to the current `frame_number` so that it can be retrieved
+and easily combined later.
+
+```python
+store.add_extra_data(temperature=42.5, humidity=12.4)
+```
+
 
 ## Example: Read a store
 
@@ -85,6 +95,13 @@ class ImgStore
 
 where 'frame index' OR 'frame number' can be passed.
 
+## Extracting Metadata or Extra data
+
+To get all the image metadata at once you can call `ImgStore.get_frame_metadata()`
+which will return a dictionary containing all `frame_number` and `frame_time`stamps.
+
+To retrieve a pandas DataFrame of all extra data and associated `frame_number`
+and `frame_time`stamps call `ImgStore.get_extra_data()`
 
 # Command line tools
 
