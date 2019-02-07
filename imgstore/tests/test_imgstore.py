@@ -758,7 +758,7 @@ def test_new_apis(tmpdir):
         d = stores.new_for_format(fmt='npy', basedir=fullp, imgshape=(10, 10), imgdtype=np.uint8)
 
 
-@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'avc1/mp4'])
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'avc1/mp4', 'h264/mkv'])
 def test_odd_sized(fmt, tmpdir):
     img = np.zeros((199, 199, 3), dtype=np.uint8)
     d = stores.new_for_format(fmt,

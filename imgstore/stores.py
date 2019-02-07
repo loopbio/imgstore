@@ -997,8 +997,18 @@ class VideoImgStore(_ImgStore):
             self._log.info('seeking NOT enabled on store (will fallback to sequential reading)')
 
         if self._mode == 'r':
-            imgshape = self._metadata['imgshape']
-            self._color = (imgshape[-1] == 3) & (len(imgshape) == 3)
+            if self.supports_format(self._format) or \
+                    ((self._metadata.get('class') == 'VideoImgStoreFFMPEG') and
+                     (('264' in self._format) or ('nvenc-' in self._format))):
+                check_imgshape = self._calculate_written_image_shape(self._imgshape, '')
+            else:
+                check_imgshape = tuple(self._imgshape)
+
+            if check_imgshape != self._imgshape:
+                self._log.warn('previous store had incorrect image_shape: corrected %r -> %r' % (
+                    self._imgshape, check_imgshape))
+                self._imgshape = check_imgshape
+            self._color = (self._imgshape[-1] == 3) & (len(self._imgshape) == 3)
 
     def _calculate_written_image_shape(self, imgshape, fmt):
         _imgshape = list(imgshape)
