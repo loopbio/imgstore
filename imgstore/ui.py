@@ -10,6 +10,7 @@ import numpy as np
 _SCREEN_RESOLUTION = None
 _IS_MAC = sys.platform == 'darwin'
 
+
 class _Window(object):
     def __init__(self, name, flags, sizestr):
         self.name = name
@@ -40,6 +41,7 @@ class _Window(object):
                 cv2.resizeWindow(self.name, int(w), int(h))
                 self._set = True
 
+    # noinspection PyPep8Naming
     def waitKey(self, *args, **kwargs):
         return cv2.waitKey(*args, **kwargs)
 
