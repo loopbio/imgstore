@@ -1064,12 +1064,21 @@ class VideoImgStore(_ImgStore):
         if new is not None:
             fn = os.path.join(self._basedir, '%06d%s' % (new, self._ext))
             h, w = self._imgshape[:2]
-            self._cap = cv2.VideoWriter(filename=fn,
-                                        apiPreference=cv2.CAP_FFMPEG,
-                                        fourcc=self._codec,
-                                        fps=25,
-                                        frameSize=(w, h),
-                                        isColor=True)
+            try:
+                self._cap = cv2.VideoWriter(filename=fn,
+                                            apiPreference=cv2.CAP_FFMPEG,
+                                            fourcc=self._codec,
+                                            fps=25,
+                                            frameSize=(w, h),
+                                            isColor=True)
+            except TypeError:
+                self._log.error('old (< 3.2) cv2 not supported (this is %r)' % (cv2.__version__,))
+                self._cap = cv2.VideoWriter(filename=fn,
+                                            fourcc=self._codec,
+                                            fps=25,
+                                            frameSize=(w, h),
+                                            isColor=True)
+
             self._capfn = fn
             self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % new))
 
