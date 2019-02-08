@@ -157,6 +157,14 @@ class _ImgStore(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def _readability_check(self, smd_class, smd_version):
+        class_name = getattr(self, 'class_name', self.__class__.__name__)
+        if smd_class != class_name:
+            raise ValueError('incompatible store, can_read:%r opened:%r' % (class_name, smd_class))
+        if smd_version != self._version:
+            raise ValueError('incompatible store version')
+        return True
+
     def _init_read(self):
         fullpath = os.path.join(self._basedir, STORE_MD_FILENAME)
         with open(fullpath, 'r') as f:
@@ -166,16 +174,8 @@ class _ImgStore(object):
         self._metadata = smd
         self._user_metadata.update(allmd)
 
-        if smd['class'] == 'VideoImgStoreFFMPEG':
-            store_class = 'VideoImgStore'
-        else:
-            store_class = smd['class']
-
-        class_name = getattr(self, 'class_name', self.__class__.__name__)
-        if store_class != class_name:
-            raise ValueError('incompatible store')
-        if smd['version'] != self._version:
-            raise ValueError('incompatible store version')
+        self._readability_check(smd_class=smd['class'],
+                                smd_version=smd['version'])
 
         try:
             # noinspection PyShadowingNames
@@ -1009,6 +1009,15 @@ class VideoImgStore(_ImgStore):
                     self._imgshape, check_imgshape))
                 self._imgshape = check_imgshape
             self._color = (self._imgshape[-1] == 3) & (len(self._imgshape) == 3)
+
+    def _readability_check(self, smd_class, smd_version):
+        can_read = {'VideoImgStoreFFMPEG', 'VideoImgStore',
+                    getattr(self, 'class_name', self.__class__.__name__)}
+        if smd_class not in can_read:
+            raise ValueError('incompatible store, can_read:%r opened:%r' % (can_read, smd_class))
+        if smd_version != self._version:
+            raise ValueError('incompatible store version')
+        return True
 
     def _calculate_written_image_shape(self, imgshape, fmt):
         _imgshape = list(imgshape)
