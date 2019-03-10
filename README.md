@@ -130,10 +130,12 @@ you have a trustworthy OpenCV version
 ## Installing from source and with all dependencies
 
  * git clone this repository
- * `conda env create -f environment.yml`
+ * Linux:
+   * `conda env create -f environment.yml`
+ * MacOSX / Windows
+   * `conda env create -f environment-mac-windows.yml`
 
-If you are on MacOSX
- * `conda env create -f environment-mac.yml`
+Note: conda will install Python3 by default. If you wish to install Python2 add `python=2` to the command, e.g. `conda env create -f environment-mac-windows.yml python=2`
 
 ## Installing only IMGStore and using system dependencies
 
