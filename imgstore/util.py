@@ -92,11 +92,13 @@ class ImageCodecProcessor(object):
 
     @classmethod
     def from_pylon_format(cls, s):
-        # pylon disagrees with opencv
+        # pylon disagrees with opencv (B & R are always switched)
         if s in {'BayerBG', 'Bayer_BG'}:
             code = 'cv_bayerrg'
         elif s in {'BayerRG', 'Bayer_RG'}:
             code = 'cv_bayerbg'
+        elif s in {'BayerGB', 'Bayer_GB'}:
+            code = 'cv_bayergr'
         elif (not s) or (s == 'None'):
             code = None
         else:
