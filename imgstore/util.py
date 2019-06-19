@@ -8,7 +8,7 @@ import json
 import numpy as np
 
 
-if cv2.__version__.startswith('3.'):
+if cv2.__version__.startswith(('3.', '4.')):
     FourCC = cv2.VideoWriter_fourcc
 else:
     # noinspection PyUnresolvedReferences
