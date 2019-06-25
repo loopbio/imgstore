@@ -422,17 +422,19 @@ class _ImgStore(object):
     @property
     def has_extra_data(self):
         for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
-            path = chunk_path + '.extra.json'
-            if os.path.exists(path):
-                return True
+            for ext in ('.extra.json', '.extra_data.json'):
+                path = chunk_path + ext
+                if os.path.exists(path):
+                    return True
         return False
 
     def get_extra_data(self):
         dfs = []
         for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
-            path = chunk_path + '.extra.json'
-            if os.path.exists(path):
-                dfs.append(pd.read_json(path, orient='record'))
+            for ext in ('.extra.json', '.extra_data.json'):
+                path = chunk_path + ext
+                if os.path.exists(path):
+                    dfs.append(pd.read_json(path, orient='record'))
         return pd.concat(dfs, axis=0, ignore_index=True)
 
     def add_extra_data(self, **data):
@@ -779,23 +781,24 @@ class _ImgStore(object):
 
             self._log.debug('reindexed chunk %d (%s)' % (chunk_n, chunk_path))
 
-            ed_path = chunk_path + '.extra.json'
-            if os.path.exists(ed_path):
-                with open(ed_path, 'r') as f:
-                    ed = json.load(f)
+            for ext in ('.extra.json', '.extra_data.json'):
+                ed_path = chunk_path + ext
+                if os.path.exists(ed_path):
+                    with open(ed_path, 'r') as f:
+                        ed = json.load(f)
 
-                # noinspection PyBroadException
-                try:
-                    df = pd.DataFrame(ed)
-                    if 'frame_index' not in df.columns:
-                        raise ValueError('can not reindex extra-data on old format stores')
-                    df['_frame_number_before_reindex'] = df['frame_number']
-                    df['frame_number'] = df.apply(lambda r: fn_new[int(r.frame_index)], axis=1)
-                    with open(ed_path, 'w') as f:
-                        df.to_json(f, orient='records')
-                    self._log.debug('reindexed chunk %d metadata (%s)' % (chunk_n, ed_path))
-                except Exception:
-                    self._log.error('could not update chunk extra data to new framenumber', exc_info=True)
+                    # noinspection PyBroadException
+                    try:
+                        df = pd.DataFrame(ed)
+                        if 'frame_index' not in df.columns:
+                            raise ValueError('can not reindex extra-data on old format stores')
+                        df['_frame_number_before_reindex'] = df['frame_number']
+                        df['frame_number'] = df.apply(lambda r: fn_new[int(r.frame_index)], axis=1)
+                        with open(ed_path, 'w') as f:
+                            df.to_json(f, orient='records')
+                        self._log.debug('reindexed chunk %d metadata (%s)' % (chunk_n, ed_path))
+                    except Exception:
+                        self._log.error('could not update chunk extra data to new framenumber', exc_info=True)
 
     @staticmethod
     def _extract_only_frame(basedir, chunk_n, frame_n, smd):
