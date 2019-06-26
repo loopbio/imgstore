@@ -434,7 +434,9 @@ class _ImgStore(object):
             for ext in ('.extra.json', '.extra_data.json'):
                 path = chunk_path + ext
                 if os.path.exists(path):
-                    dfs.append(pd.read_json(path, orient='record'))
+                    with open(path, 'rt') as f:
+                        records = json.load(f)
+                    dfs.append(pd.DataFrame(records))
         return pd.concat(dfs, axis=0, ignore_index=True)
 
     def add_extra_data(self, **data):
