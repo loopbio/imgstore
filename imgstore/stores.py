@@ -428,16 +428,23 @@ class _ImgStore(object):
                     return True
         return False
 
-    def get_extra_data(self):
+    def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []
         for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
             for ext in ('.extra.json', '.extra_data.json'):
                 path = chunk_path + ext
                 if os.path.exists(path):
                     with open(path, 'rt') as f:
-                        records = json.load(f)
+                        try:
+                            records = json.load(f)
+                        except ValueError:
+                            if ignore_corrupt_chunks:
+                                continue
+                            else:
+                                raise
                     dfs.append(pd.DataFrame(records))
-        return pd.concat(dfs, axis=0, ignore_index=True)
+        if dfs:
+            return pd.concat(dfs, axis=0, ignore_index=True)
 
     def add_extra_data(self, **data):
         if not data:
