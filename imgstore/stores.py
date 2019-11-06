@@ -49,7 +49,7 @@ _VERBOSE_VERY = False  # overrides the other and prints all logs to stdout
 
 def _extract_store_metadata(full_path):
     with open(full_path, 'r') as f:
-        allmd = yaml.load(f)
+        allmd = yaml.load(f, Loader=yaml.SafeLoader)
     return allmd.pop(STORE_MD_KEY)
 
 
@@ -168,7 +168,7 @@ class _ImgStore(object):
     def _init_read(self):
         fullpath = os.path.join(self._basedir, STORE_MD_FILENAME)
         with open(fullpath, 'r') as f:
-            allmd = yaml.load(f)
+            allmd = yaml.load(f, Loader=yaml.SafeLoader)
         smd = allmd.pop(STORE_MD_KEY)
 
         self._metadata = smd
@@ -1245,7 +1245,7 @@ def new_for_filename(path, **kwargs):
     kwargs['basedir'] = basedir
 
     with open(fullpath, 'rt') as f:
-        clsname = yaml.load(f)[STORE_MD_KEY]['class']
+        clsname = yaml.load(f, Loader=yaml.SafeLoader)[STORE_MD_KEY]['class']
 
     # retain compatibility with internal loopbio stores
     if clsname == 'VideoImgStoreFFMPEG':
