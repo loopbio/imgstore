@@ -12,7 +12,7 @@ from imgstore.apps import generate_timecodes
 
 # take an imgstore and audio recording (using motif 5.2 and the
 # audio backend) and re-mux the audio data with the
-# 25fps (constant frame rate 'cfr') store mp4 file into a mp4 whose frames
+# 25fps (constant frame rate 'cfr') store mp4 files into a mp4 whose frames
 # are shown at the correct (and possibly varying, 'vfr') framerate and time
 #
 # e.g python examples/mux_audio_to_store.py 20191230_150752_with_audio_chunks/metadata.yaml
@@ -40,7 +40,9 @@ def extract_audio(chunks):
             fn = cam['frame_number']
             ft = cam['frame_time']
 
-            # recording can be stopped before chunk is full
+            # recording can be stopped before chunk is full, so trim away rows in the store that
+            # were pre-allocated, but not recorded. pre-allocated but un-used frames are indicated with
+            # a framenumber < 0
             mask = fn >= 0
 
             arrs_audio.append(audio[:, mask])
@@ -53,10 +55,13 @@ def extract_audio(chunks):
 td = tempfile.mkdtemp()
 store = new_for_filename(SOURCE)
 
-print store.frame_count
+print store.frame_count, 'frames in store'
 
 if not (isinstance(store, VideoImgStore) and (store.user_metadata.get('motif_version'))):
     raise ValueError('Only motif recordings supported')
+
+if store._ext != '.mp4':
+    raise ValueError('Only mp4 format recordings are supported')
 
 mp4s = store._chunk_paths
 if len(mp4s) == 1:
@@ -69,6 +74,7 @@ else:
         for p in mp4s:
             f.write("file '%s'\n" % p)
 
+    # with mp4, does *NOT* re-encode
     subprocess.check_call([FFMPEG, '-f', 'concat', '-safe', '0', '-i', cutlist, '-c', 'copy', mp4_cfr])
 
 # generate a timecode file
@@ -97,10 +103,11 @@ print at0, 'audio t0'
 print vt0, 'video t0'
 dt = at0 - vt0
 
-# audio starts after video
+# audio always starts (even by the smallest amount) after video
 assert dt > 0
 print 'VIDEO-AUDIO offset', dt
 
+# vcodec copy does not re-encode
 mp4_combined = os.path.join(td, 'combined.mp4')
 subprocess.check_call([FFMPEG, '-i', mp4_vfr,
                        '-itsoffset', '%.5f' % dt,
