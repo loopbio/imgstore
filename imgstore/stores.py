@@ -42,6 +42,8 @@ STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
 STORE_LOCK_FILENAME = '.lock'
 
+EXTRA_DATA_FILE_EXTENSIONS = ('.extra.json', '.extra_data.json')
+
 _VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
 _VERBOSE_VERY = False  # overrides the other and prints all logs to stdout
@@ -427,6 +429,15 @@ class _ImgStore(object):
                 if os.path.exists(path):
                     return True
         return False
+
+    def find_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
+        fns = []
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+            for ext in extensions:
+                path = chunk_path + ext
+                if os.path.exists(path):
+                    fns.append(path)
+        return fns
 
     def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []
@@ -1053,6 +1064,11 @@ class VideoImgStore(_ImgStore):
     @property
     def _ext(self):
         return self._get_chunk_extension(self._metadata)
+
+    @property
+    def _chunk_paths(self):
+        ext = self._ext
+        return ['%s%s' % (p[1], ext) for p in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0))]
 
     def _find_chunks(self, chunk_numbers):
         if chunk_numbers is None:
