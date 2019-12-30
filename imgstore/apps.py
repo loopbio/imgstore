@@ -2,12 +2,11 @@ from __future__ import print_function, absolute_import
 
 import cv2
 
-from .stores import new_for_filename, get_supported_formats, new_for_format, STORE_MD_FILENAME
+from .stores import new_for_filename, get_supported_formats, new_for_format
 from .ui import new_window
 
 
 def main_viewer():
-    import os.path
     import argparse
     import logging
 
@@ -22,13 +21,7 @@ def main_viewer():
     if args.fps == 0.0:
         args.fps = 1000.0  # ensure w sleep at least 1ms
 
-    path = args.path[0]
-    if os.path.isdir(path):
-        path = os.path.join(path, STORE_MD_FILENAME)
-    if not os.path.isfile(path):
-        parser.error('path must be an imagestore directory')
-
-    store = new_for_filename(path)
+    store = new_for_filename(args.path[0])
 
     win = new_window('imgstore', shape=store.image_shape)
     print("Created %r" % win)
