@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import
 
 import cv2
+import numpy as np
 
 from .stores import new_for_filename, get_supported_formats, new_for_format
 from .ui import new_window
@@ -102,3 +103,26 @@ def main_test():
 
     pytest.main(['-v', os.path.join(os.path.abspath(os.path.dirname(__file__)), 'tests')])
 
+
+def generate_timecodes(store, dest_file):
+    ts = np.asarray(store.get_frame_metadata()['frame_time'])
+
+    dest_file.write('# timecode format v2\n')
+    for t in (ts - ts[0]):
+        dest_file.write('{0:.3f}\n'.format(t * 1000.))
+
+
+def main_generate_timecodes():
+    import sys
+    import argparse
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('path', nargs=1)
+    args = parser.parse_args()
+
+    store = new_for_filename(args.path[0])
+
+    generate_timecodes(store, sys.stdout)
