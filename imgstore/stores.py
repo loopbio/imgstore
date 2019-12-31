@@ -641,7 +641,7 @@ class _ImgStore(object):
                 break
 
         if chunk_n == -1:
-            raise ValueError('frame_index %s not found in index' % frame_idx)
+            raise ValueError('frame_index %s not found in index' % frame_index)
 
         # reset to start of chunk for load_image
         self._load_chunk(chunk_n)
