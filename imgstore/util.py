@@ -195,8 +195,11 @@ def motif_extra_data_h5_to_df(path):
             for col, col_name in enumerate(col_names):
                 dat[col_name] = arr[col]
 
-            # also add the camera sync information
-            for cam_md_name in camera.dtype.names:
-                dat[cam_md_name] = camera[cam_md_name][mask]
+        # also add the camera sync information
+        for cam_md_name in camera.dtype.names:
+            dat[cam_md_name] = camera[cam_md_name][mask]
+
+        # and the sample delays
+        dat['sample_delay'] = np.asarray(f['sample_delay'])[mask]
 
         return pd.DataFrame(dat)
