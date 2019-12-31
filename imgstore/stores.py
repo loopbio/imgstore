@@ -96,6 +96,7 @@ class _ImgStore(object):
         self.frame_count = 0
         self.frame_time = np.nan
 
+        # noinspection PyClassHasNoInit
         class _Log:
 
             @staticmethod
@@ -104,6 +105,7 @@ class _ImgStore(object):
 
             debug = info
             warn = info
+            error = info
 
         self._log = logging.getLogger('imgstore')
         if _VERBOSE_VERY:
@@ -295,7 +297,7 @@ class _ImgStore(object):
         with open(os.path.join(self._basedir, STORE_MD_FILENAME), 'wt') as f:
             yaml.safe_dump(metadata, f)
 
-        with open(os.path.join(self._basedir, STORE_LOCK_FILENAME), 'a') as f:
+        with open(os.path.join(self._basedir, STORE_LOCK_FILENAME), 'a') as _:
             pass
 
         smd = metadata.pop(STORE_MD_KEY)
