@@ -24,8 +24,13 @@ from imgstore.apps import generate_timecodes
 # tested with 3.4.6
 FFMPEG = 'ffmpeg'
 # https://github.com/nu774/mp4fpsmod (tested with 0.26)
-MP4FPSMOD = 'mp4fpsmod'
-SOURCE = sys.argv[1]
+MP4FPSMOD = '/home/stowers/Programming/mp4fpsmod/mp4fpsmod'
+
+
+try:
+    SOURCE = sys.argv[1]
+except IndexError:
+    SOURCE = '/mnt/loopbio/tests/motif/audiosmallchunk_20191231_160612'
 
 
 def extract_audio(chunks):
@@ -101,10 +106,15 @@ wavfile.write(wav, rate=sr, data=audio_arr.T)
 # calculate the starting offset between audio and video
 at0 = np.min(fts_arr)
 vt0 = np.min(store.get_frame_metadata()['frame_time'])
+# account for the mean sample delay
+delay = np.mean(store.get_extra_data()['sample_delay'])
+assert delay < 0
 
 print at0, 'audio t0'
 print vt0, 'video t0'
-dt = at0 - vt0
+print delay, 'sampling delay'
+
+dt = (at0 - vt0) + delay
 
 # audio always starts (even by the smallest amount) after video
 assert dt > 0
