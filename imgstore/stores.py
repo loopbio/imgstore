@@ -35,14 +35,15 @@ except ImportError:
     # python 2
     DEVNULL = open(os.devnull, 'r+b')
 
-from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color, ensure_grayscale
+from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color,\
+    ensure_grayscale, motif_extra_data_h5_to_df
 
 
 STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
 STORE_LOCK_FILENAME = '.lock'
 
-EXTRA_DATA_FILE_EXTENSIONS = ('.extra.json', '.extra_data.json')
+EXTRA_DATA_FILE_EXTENSIONS = ('.extra.json', '.extra_data.json', '.extra_data.h5')
 
 _VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
@@ -425,8 +426,8 @@ class _ImgStore(object):
 
     @property
     def has_extra_data(self):
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
-            for ext in ('.extra.json', '.extra_data.json'):
+        for chunk_n, chunk_path in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+            for ext in EXTRA_DATA_FILE_EXTENSIONS:
                 path = chunk_path + ext
                 if os.path.exists(path):
                     return True
@@ -434,7 +435,7 @@ class _ImgStore(object):
 
     def find_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
         fns = []
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+        for chunk_n, chunk_path in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
             for ext in extensions:
                 path = chunk_path + ext
                 if os.path.exists(path):
@@ -443,19 +444,24 @@ class _ImgStore(object):
 
     def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
-            for ext in ('.extra.json', '.extra_data.json'):
-                path = chunk_path + ext
-                if os.path.exists(path):
-                    with open(path, 'rt') as f:
-                        try:
-                            records = json.load(f)
-                        except ValueError:
-                            if ignore_corrupt_chunks:
-                                continue
-                            else:
-                                raise
-                    dfs.append(pd.DataFrame(records))
+        for chunk_n, chunk_path in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+            ext = '.extra_data.h5'
+            path = chunk_path + ext
+            if os.path.exists(path):
+                dfs.append(motif_extra_data_h5_to_df(path))
+            else:
+                for ext in ('.extra.json', '.extra_data.json'):
+                    path = chunk_path + ext
+                    if os.path.exists(path):
+                        with open(path, 'rt') as f:
+                            try:
+                                records = json.load(f)
+                            except ValueError:
+                                if ignore_corrupt_chunks:
+                                    continue
+                                else:
+                                    raise
+                        dfs.append(pd.DataFrame(records))
         if dfs:
             return pd.concat(dfs, axis=0, ignore_index=True)
 

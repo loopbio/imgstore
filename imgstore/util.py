@@ -164,3 +164,39 @@ class JsonCustomEncoder(json.JSONEncoder):
             return obj.isoformat()
 
         return json.JSONEncoder.default(self, obj)
+
+
+def motif_extra_data_h5_to_df(path):
+    import h5py
+    import pandas as pd
+
+    with h5py.File(path, 'r') as f:
+        dat = {}
+
+        # the camera information is stored in an array with compound datatype
+        camera = np.asarray(f['camera'])
+
+        # recording can be stopped before chunk is full, so trim away rows in the store that
+        # were pre-allocated, but not recorded. pre-allocated but un-used frames are indicated with
+        # a framenumber < 0
+        mask = camera['frame_number'] >= 0
+
+        # motif stores the names of datasets in a root attribute
+        datasets = map(str.strip, f.attrs['datasets'].split(','))
+
+        for dsname in datasets:
+            ds = f[dsname]
+            col_names = map(str.strip, ds.attrs['column_names'].split(','))
+            # trim the array
+            arr = ds[..., mask]
+
+            assert len(col_names) == arr.shape[0]
+
+            for col, col_name in enumerate(col_names):
+                dat[col_name] = arr[col]
+
+            # also add the camera sync information
+            for cam_md_name in camera.dtype.names:
+                dat[cam_md_name] = camera[cam_md_name][mask]
+
+        return pd.DataFrame(dat)
