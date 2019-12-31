@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import re
 import sys
+import logging
 import subprocess
 
 import cv2
@@ -9,6 +10,8 @@ import numpy as np
 
 _SCREEN_RESOLUTION = None
 _IS_MAC = sys.platform == 'darwin'
+
+_log = logging.getLogger('imgstore.ui')
 
 
 class _Window(object):
@@ -69,9 +72,9 @@ def get_screen_resolution():
                 resolution_line = [l for l in out.splitlines() if '*' in l][0]
                 resolution = resolution_line.split()[0]
         except subprocess.CalledProcessError as exc:
-            print("ERROR detecting:", exc)
+            _log.warn("could not detect resolution: %r:" % exc)
         except Exception as exc:
-            print("ERROR parsing:", exc)
+            _log.warn("could not parse resolution: %r:" % exc)
 
         _SCREEN_RESOLUTION = resolution
 
@@ -86,9 +89,9 @@ def get_and_parse_screen_resolution(scale=1.0, default=(1024, 768)):
         try:
             _w, _h = map(float, res.split('x'))
         except ValueError:
-            print("ERROR splitting resolution string")
+            _log.warn("could not splitting resolution string: %r:" % res)
     else:
-        print("ERROR unable to get resolution")
+        _log.warn("could not get resolution string")
 
     w = float(scale) * _w
     h = float(scale) * _h

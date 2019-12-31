@@ -1033,6 +1033,8 @@ class VideoImgStore(_ImgStore):
                 self._imgshape = check_imgshape
             self._color = (self._imgshape[-1] == 3) & (len(self._imgshape) == 3)
 
+        self._log.info("store is native color: %s (or grayscale with encoding: '%s')" % (self._color, self._encoding))
+
     def _readability_check(self, smd_class, smd_version):
         can_read = {'VideoImgStoreFFMPEG', 'VideoImgStore',
                     getattr(self, 'class_name', self.__class__.__name__)}

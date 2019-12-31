@@ -1,10 +1,13 @@
 from __future__ import print_function, absolute_import
+import logging
 
 import cv2
 import numpy as np
 
 from .stores import new_for_filename, get_supported_formats, new_for_format
 from .ui import new_window
+
+_log = logging.getLogger('imgstore.apps')
 
 
 def main_viewer():
@@ -25,7 +28,7 @@ def main_viewer():
     store = new_for_filename(args.path[0])
 
     win = new_window('imgstore', shape=store.image_shape)
-    print("Created %r" % win)
+    _log.debug('created window: %r' % win)
 
     while True:
         try:
