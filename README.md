@@ -161,6 +161,11 @@ You should always run the command `imgstore-test` after installing imgstore. If 
 environment is working correctly you should see a lot of text printed, followed by the
 text `==== 66 passed, ..... ======`
 
+To test against the package without installing first, run `python -m pytest`
+
+Note: by running pytest through it's python module interface, the interpreter adds `pwd` to
+top of `PYTHONPATH`, as opposed to running tests through `py.test` which doesn't.
+
 #### Release Checklist
 
 * test with GPL opencv/ffmpeg
