@@ -16,7 +16,10 @@ from imgstore.apps import generate_timecodes
 # are shown at the correct (and possibly varying, 'vfr') framerate and time
 #
 # e.g python examples/mux_audio_to_store.py 20191230_150752_with_audio_chunks/metadata.yaml
-# ffplay /path/to/mp4
+#
+# will print at the end the file name of the created mp4. Totem appears to play VFR mp4s with
+# complicated PTS ok
+# $ totem /path/to/vfr.mp4
 
 # tested with 3.4.6
 FFMPEG = 'ffmpeg'
@@ -116,4 +119,4 @@ subprocess.check_call([FFMPEG, '-i', mp4_vfr,
                        '-acodec', 'libmp3lame',
                        mp4_combined])
 
-print mp4_combined
+print "============== Created:", mp4_combined
