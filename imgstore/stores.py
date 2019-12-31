@@ -86,6 +86,7 @@ class _ImgStore(object):
 
         self._metadata = {}
         self._user_metadata = {}
+        self._frame_time_cache = None
 
         self._tN = self._t0 = time.time()
 
@@ -718,6 +719,18 @@ class _ImgStore(object):
         self.frame_number = _frame_number
 
         return img, (_frame_number, _frame_timestamp)
+
+    @property
+    def _frame_times(self):
+        if self._frame_time_cache is None:
+            self._frame_time_cache = np.asarray(self.get_frame_metadata()['frame_time'])
+        return self._frame_time_cache
+
+    def get_nearest_image(self, frame_time, tolerance=None, side='left'):
+        idx = np.searchsorted(self._frame_times, frame_time, side=side)
+        if _VERBOSE_DEBUG_GETS:
+            self._log.debug('get_nearest_image frame_time %s side %s idx= %s' % (frame_time, side, idx))
+        return self.get_image(frame_number=None, frame_index=idx)
 
     def get_image(self, frame_number, exact_only=True, frame_index=None):
         """
