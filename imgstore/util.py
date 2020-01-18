@@ -182,11 +182,11 @@ def motif_extra_data_h5_to_df(path):
         mask = camera['frame_number'] >= 0
 
         # motif stores the names of datasets in a root attribute
-        datasets = map(str.strip, f.attrs['datasets'].split(','))
+        datasets = [s.strip() for s in f.attrs['datasets'].decode('ascii').split(',')]
 
         for dsname in datasets:
             ds = f[dsname]
-            col_names = map(str.strip, ds.attrs['column_names'].split(','))
+            col_names = [s.strip() for s in ds.attrs['column_names'].decode('ascii').split(',')]
             # trim the array
             arr = ds[..., mask]
 

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 import os.path
 import tempfile
@@ -63,7 +65,7 @@ def extract_audio(chunks):
 td = tempfile.mkdtemp()
 store = new_for_filename(SOURCE)
 
-print store.frame_count, 'frames in store'
+print(store.frame_count, 'frames in store')
 
 if not (isinstance(store, VideoImgStore) and (store.user_metadata.get('motif_version'))):
     raise ValueError('Only motif recordings supported')
@@ -97,8 +99,8 @@ subprocess.check_call([MP4FPSMOD, '-o', mp4_vfr, '-t', mp4_timecode, mp4_cfr])
 audio_chunks = store.find_extra_data_files(extensions=('.extra_data.h5', ))
 sr, audio_arr, fns_arr, fts_arr = extract_audio(audio_chunks)
 
-print store.frame_count, 'frames of video'
-print audio_arr.shape[1] / float(sr), 'seconds of audio'
+print(store.frame_count, 'frames of video')
+print(audio_arr.shape[1] / float(sr), 'seconds of audio')
 
 wav = os.path.join(td, 'audio.wav')
 wavfile.write(wav, rate=sr, data=audio_arr.T)
@@ -110,15 +112,15 @@ vt0 = np.min(store.get_frame_metadata()['frame_time'])
 delay = np.mean(store.get_extra_data()['sample_delay'])
 assert delay < 0
 
-print at0, 'audio t0'
-print vt0, 'video t0'
-print delay, 'sampling delay'
+print(at0, 'audio t0')
+print(vt0, 'video t0')
+print(delay, 'sampling delay')
 
 dt = (at0 - vt0) + delay
 
 # audio always starts (even by the smallest amount) after video
 assert dt > 0
-print 'VIDEO-AUDIO offset', dt
+print('VIDEO-AUDIO offset', dt)
 
 # vcodec copy does not re-encode
 mp4_combined = os.path.join(td, 'combined.mp4')
@@ -129,4 +131,4 @@ subprocess.check_call([FFMPEG, '-i', mp4_vfr,
                        '-acodec', 'libmp3lame',
                        mp4_combined])
 
-print "============== Created:", mp4_combined
+print("============== Created:", mp4_combined)

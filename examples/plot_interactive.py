@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 
 import cv2
@@ -27,7 +29,7 @@ USE_CAMERA_TIME = False
 sts = np.asarray(df['sample_time'])
 sample_delay = np.asarray(df['sample_delay'])
 
-print "mean delay", sample_delay.mean()
+print("mean delay", sample_delay.mean())
 
 
 def imshowu8(_img, _ax):
@@ -54,7 +56,7 @@ def on_plotclick(event):
 
             img, (fn, ft) = store.get_nearest_image(ts - delay)
 
-            print 'fn (delay corrected): %s vs %s' % (fn, fn_orig)
+            print('fn (delay corrected): %s vs %s' % (fn, fn_orig))
 
             figimg.suptitle("frame_number:%s\nframe_time:%s" % (fn, ft))
             imshowu8(img, aximg)
