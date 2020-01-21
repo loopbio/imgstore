@@ -60,7 +60,6 @@ and easily combined later.
 store.add_extra_data(temperature=42.5, humidity=12.4)
 ```
 
-
 ## Example: Read a store
 
 ```python
@@ -117,10 +116,10 @@ Some simple tools for creating, converting and viewing imgstores are provided
 # Install
 
 *IMGStore* depends on reliable OpenCV builds, and built with mp4/h264 support for
-writing mp4s. Loopbio provides [reliable conda OpenCV builds](http://blog.loopbio.com/conda-packages.html)
-in our conda channel, and we recommend using these.
+writing mp4s.
 
-Once you have a conda environment with a recent and reliable OpenCV build, you can install IMGStore from pip
+Once you have a conda environment with a recent and reliable OpenCV build,
+you can install IMGStore from pip
 
 `$ pip install imgstore`
 
@@ -130,17 +129,15 @@ you have a trustworthy OpenCV version
 ## Installing from source and with all dependencies
 
  * git clone this repository
- * Linux:
-   * `conda env create -f environment.yml`
- * MacOSX / Windows
-   * `conda env create -f environment-mac-windows.yml`
+ * `conda env create -f environment.yml`
 
 Note: conda will install Python3 by default. If you wish to install Python2 add `python=2` to the command, e.g. `conda env create -f environment-mac-windows.yml python=2`
 
 ## Installing only IMGStore and using system dependencies
 
 We recommend installing *IMGStore* **dependencies** using the conda package manager, however
-it is possible to create a virtual env which uses your system OpenCV install. 
+it is possible to create a virtual env which uses your system OpenCV install. The
+
 
 ```sh
 # generate virtual env

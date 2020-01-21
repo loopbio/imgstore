@@ -1,18 +1,19 @@
 name: imgstore
 
 channels:
-  - loopbio
   - conda-forge
   - defaults
 
 dependencies:
-  - loopbio::ffmpeg=4.0.2=nonvidia_gpl*
-  - loopbio::opencv=3.4.2
+  - conda-forge::ffmpeg=4
+
+  - opencv=3
 
   - python-dateutil
   - pytz
   - tzlocal
 
+  - h5py
   - pyyaml
   - numpy
   - pandas
