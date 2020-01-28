@@ -12,7 +12,7 @@ except IndexError:
 store = new_for_filename(SOURCE)
 assert store.has_extra_data
 
-df = store.get_extra_data()
+df = store.get_extra_data(ignore_corrupt_chunks=True)
 df.plot(subplots=True)
 
 plt.show()
