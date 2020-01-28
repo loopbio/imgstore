@@ -25,6 +25,9 @@ df = store.get_extra_data(ignore_corrupt_chunks=True)
 fts = np.asarray(df['frame_time'])
 fns = np.asarray(df['frame_number'])
 
+print("store video frame range: %s -> %s" % (store.frame_min, store.frame_max))
+print("extra data frame rage: %s -> %s" % (fns.min(), fns.max()))
+
 USE_CAMERA_TIME = False
 sts = np.asarray(df['sample_time'])
 sample_delay = np.asarray(df['sample_delay'])
@@ -66,6 +69,9 @@ def on_plotclick(event):
 figdata = plt.figure(figsize=(8, 8))
 figdata.canvas.mpl_connect('button_press_event', on_plotclick)
 
-df.plot(subplots=True, ax=figdata.add_subplot(111), sharex=True)
+ax = figdata.add_subplot(111)
+# todo: axvline the store range?
+
+df.plot(subplots=True, ax=ax, sharex=True)
 
 plt.show()
