@@ -449,7 +449,14 @@ class _ImgStore(object):
             ext = '.extra_data.h5'
             path = chunk_path + ext
             if os.path.exists(path):
-                dfs.append(motif_extra_data_h5_to_df(path))
+                try:
+                    dfs.append(motif_extra_data_h5_to_df(path))
+                except IOError:
+                    if ignore_corrupt_chunks:
+                        continue
+                        self._log.warn('chunk %s is corrupt' % path)
+                    else:
+                        raise
             else:
                 for ext in ('.extra.json', '.extra_data.json'):
                     path = chunk_path + ext
@@ -459,7 +466,7 @@ class _ImgStore(object):
                                 records = json.load(f)
                             except ValueError:
                                 if ignore_corrupt_chunks:
-                                    continue
+                                    self._log.warn('chunk %s is corrupt' % path)
                                 else:
                                     raise
                         dfs.append(pd.DataFrame(records))
