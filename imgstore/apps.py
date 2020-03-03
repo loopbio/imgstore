@@ -108,11 +108,13 @@ def main_test():
 
 
 def generate_timecodes(store, dest_file):
-    ts = np.asarray(store.get_frame_metadata()['frame_time'])
+    _ts = np.asarray(store.get_frame_metadata()['frame_time'])
+    ts = _ts - _ts[0]
 
     dest_file.write('# timecode format v2\n')
-    for t in (ts - ts[0]):
+    for t in ts:
         dest_file.write('{0:.3f}\n'.format(t * 1000.))
+    return ts
 
 
 def main_generate_timecodes():
