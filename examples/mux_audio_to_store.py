@@ -90,7 +90,7 @@ else:
 # generate a timecode file
 mp4_timecode = os.path.join(td, 'timecodes.txt')
 with open(mp4_timecode, 'wt') as f:
-    generate_timecodes(store, f)
+    ts = generate_timecodes(store, f)
 
 # generate a vfr mp4
 mp4_vfr = os.path.join(td, 'vfr.mp4')
@@ -101,6 +101,7 @@ sr, audio_arr, fns_arr, fts_arr = extract_audio(audio_chunks)
 
 print(store.frame_count, 'frames of video')
 print(audio_arr.shape[1] / float(sr), 'seconds of audio')
+print(ts.max(), 'seconds of video')
 
 wav = os.path.join(td, 'audio.wav')
 wavfile.write(wav, rate=sr, data=audio_arr.T)
