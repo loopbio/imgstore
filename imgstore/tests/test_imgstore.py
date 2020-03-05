@@ -52,12 +52,12 @@ def get_size(start_path):
     return total_size
 
 
-def new_framecode_store(dest, frame0, nframes, format='png'):
+def new_framecode_store(dest, frame0, nframes, format='png', chunksize=7):
     kwargs = dict(basedir=dest,
                   mode='w',
                   imgshape=(512, 512, 3),
                   imgdtype=np.uint8,
-                  chunksize=7,
+                  chunksize=chunksize,
                   format=format)
 
     d = stores.new_for_format(format, **kwargs)
@@ -829,3 +829,46 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize):
     frame, (frame_number, frame_timestamp) = d.get_next_image()
     assert frame_number == fn
     assert decode_image(frame) == fn
+
+
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'avc1/mp4', 'h264/mkv'])
+@pytest.mark.parametrize("nframes", [2, 3, 4])
+@pytest.mark.parametrize("seek", [True, False], ids=['seek', 'noseek'])
+def test_max_framenumber_behaviour(fmt, nframes, seek, tmpdir):
+    _, path = new_framecode_store(dest=tmpdir.strpath,
+                                  frame0=3, nframes=nframes, format=fmt, chunksize=3)
+
+    store = stores.new_for_filename(path, seek=seek)
+    assert store.frame_count == nframes
+
+    img, (_fn, _) = store.get_image(frame_number=store.frame_max, exact_only=True)
+    assert _fn == store.frame_max
+    assert img is not None
+
+    with pytest.raises(EOFError):
+        store.get_next_framenumber()
+
+    store.close()
+    store = stores.new_for_filename(path, seek=seek)
+
+    img, (_fn, _) = store.get_image(frame_number=store.frame_max - 1, exact_only=True)
+    assert decode_image(img[:, :, 0]) == (store.frame_max - 1)
+    img, (_fn, _) = store.get_image(frame_number=store.frame_max, exact_only=True)
+    assert _fn == store.frame_max
+    assert decode_image(img[:, :, 0]) == store.frame_max
+    assert store.frame_number == store.frame_max
+
+    with pytest.raises(EOFError):
+        store.get_next_framenumber()
+
+    store.close()
+    store = stores.new_for_filename(path, seek=seek)
+
+    for i in range(0, store.frame_count):
+        img, (_fn, _) = store.get_image(frame_number=None, exact_only=True, frame_index=i)
+        assert (_fn - 3) == i
+        assert decode_image(img[:, :, 0]) == _fn
+
+    with pytest.raises(ValueError):
+        store.get_image(frame_number=None, exact_only=True, frame_index=store.frame_count)
+
