@@ -775,6 +775,23 @@ def test_odd_sized(fmt, tmpdir):
     assert _img.shape == d.image_shape
 
 
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
+def test_empty(tmpdir, fmt):
+    s = stores.new_for_format(fmt,
+                              basedir=tmpdir.strpath,
+                              imgshape=(512, 512),
+                              imgdtype=np.uint8,
+                              chunksize=17)
+    s.close()
+
+    d = stores.new_for_filename(s.full_path)
+    assert np.isnan(d.frame_min)
+    assert np.isnan(d.frame_max)
+    assert d.frame_count == 0
+    assert d.duration == 0
+    assert d.chunks == []
+
+
 @pytest.mark.parametrize('chunksize', (2,100))
 @pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
 def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
@@ -806,6 +823,16 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
 
     with pytest.raises(EOFError):
         d.get_next_image()
+
+    # test some error paths
+    with pytest.raises(ValueError):
+        d.get_image(42, exact_only=True, frame_index=None)
+    with pytest.raises(ValueError):
+        d.get_image(None, exact_only=True, frame_index=42)
+
+    # old behaviour
+    frame, (frame_number, frame_timestamp) = d.get_image(42, exact_only=False, frame_index=None)
+    assert frame_number == 2
 
     # iter in reversed to make it more interesting
     for fn in reversed(FNS):
