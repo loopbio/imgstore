@@ -507,7 +507,7 @@ def test_reindex_to_zero(loglevel_debug, tmpdir, grey_image, chunksize):
     s.close()
 
     j = stores.new_for_filename(s.full_path, mode='r')
-    npt.assert_array_equal(s.get_frame_metadata()['frame_number'], [-2, -1, 0, 1, 2, 3, 4])
+    npt.assert_array_equal(j.get_frame_metadata()['frame_number'], [-2, -1, 0, 1, 2, 3, 4])
 
     df = j.get_extra_data()
     assert len(df) == 3
