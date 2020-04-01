@@ -785,14 +785,18 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
                               imgshape=(512, 512),
                               imgdtype=np.uint8,
                               chunksize=chunksize)
+
+    times = []
     for fn in FNS:
-        s.add_image(encode_image(fn, imgsize=512), fn, time.time())
+        times.append(time.time())
+        s.add_image(encode_image(fn, imgsize=512), fn, times[-1])
     s.close()
 
     d = stores.new_for_filename(s.full_path)
     assert d.frame_min == 0
     assert d.frame_max == 6056
     assert d.frame_count == 6
+    assert d.chunks == ([0, 1, 2] if chunksize == 2 else [0])
 
     for fn in FNS:
         frame, (frame_number, frame_timestamp) = d.get_next_image()
@@ -831,6 +835,21 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
     frame, (frame_number, frame_timestamp) = d.get_next_image()
     assert frame_number == fn
     assert decode_image(frame) == fn
+
+    # get nearest frames
+    frame, (frame_number, frame_timestamp) = d.get_image(6054, exact_only=False, frame_index=None)
+    assert frame_number == 6055
+    assert decode_image(frame) == 6055
+
+    frame, (frame_number, frame_timestamp) = d.get_nearest_image(times[0])
+    assert frame_number == 6050
+    assert decode_image(frame) == 6050
+    frame, (frame_number, frame_timestamp) = d.get_nearest_image(times[0] - 1.)
+    assert frame_number == 6050
+    assert decode_image(frame) == 6050
+    frame, (frame_number, frame_timestamp) = d.get_nearest_image(times[0] + (3. * (times[1] - times[0]) / 4.))
+    assert frame_number == 6055
+    assert decode_image(frame) == 6055
 
 
 @pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'avc1/mp4', 'h264/mkv'])
