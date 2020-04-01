@@ -776,12 +776,13 @@ def test_odd_sized(fmt, tmpdir):
 
 
 @pytest.mark.parametrize('chunksize', (2,100))
-def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize):
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
+def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
     FNS = [6050, 6055, 6056, 0, 1, 2]
 
-    s = stores.new_for_format('npy',
+    s = stores.new_for_format(fmt,
                               basedir=tmpdir.strpath,
-                              imgshape=(512,512),
+                              imgshape=(512, 512),
                               imgdtype=np.uint8,
                               chunksize=chunksize)
     for fn in FNS:
@@ -795,6 +796,7 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize):
 
     for fn in FNS:
         frame, (frame_number, frame_timestamp) = d.get_next_image()
+        assert frame.shape == (512, 512)
         assert frame_number == fn
         assert decode_image(frame) == fn
 

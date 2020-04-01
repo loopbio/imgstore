@@ -115,6 +115,8 @@ class _ImgStore(object):
             self._log = _Log
 
         self._chunk_n = 0
+        self._chunk_current_frame_idx = -1
+
         self._chunk_n_and_chunk_paths = ()
 
         # all chunks in the store [0,1,2, ... ]
@@ -622,9 +624,18 @@ class _ImgStore(object):
 
     def get_next_image(self):
         frame_number, idx = self._get_next_framenumber_and_chunk_frame_idx()
+        assert idx is not None
+
         if _VERBOSE_DEBUG_GETS:
             self._log.debug('get_next_image frame_number: %s idx %s' % (frame_number, idx))
-        return self._get_image_by_frame_number(frame_number, exact_only=True, frame_idx=idx)
+
+        # ensure the read works before setting frame_number
+        _img, (_frame_number, _frame_timestamp) = self._load_image(idx)
+        img = self._decode_image(_img)
+        self._chunk_current_frame_idx = idx
+        self.frame_number = _frame_number
+
+        return img, (_frame_number, _frame_timestamp)
 
     def _get_image_by_frame_index(self, frame_index):
         """
@@ -665,18 +676,17 @@ class _ImgStore(object):
 
         return img, (_frame_number, _frame_timestamp)
 
-    def _get_image_by_frame_number(self, frame_number, exact_only, frame_idx):
+    def _get_image_by_frame_number(self, frame_number, exact_only):
         # there is a high likelihood the current chunk holds the next frame
         # so look there first
 
         if _VERBOSE_DEBUG_CHUNKS:
-            self._log.debug('seek by frame_number %s (exact: %s) frame_idx %s' % (frame_number, exact_only, frame_idx))
+            self._log.debug('seek by frame_number %s (exact: %s)' % (frame_number, exact_only))
 
-        if frame_idx is None:
-            try:
-                frame_idx = self._chunk_index.index(frame_number)
-            except ValueError:
-                frame_idx = None
+        try:
+            frame_idx = self._chunk_index.index(frame_number)
+        except ValueError:
+            frame_idx = None
 
         if frame_idx is None:
             chunk_n = -1
@@ -721,7 +731,6 @@ class _ImgStore(object):
         # ensure the read works before setting frame_number
         _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
         img = self._decode_image(_img)
-
         self._chunk_current_frame_idx = frame_idx
         self.frame_number = _frame_number
 
@@ -753,7 +762,7 @@ class _ImgStore(object):
         if frame_index is not None:
             return self._get_image_by_frame_index(frame_index)
         else:
-            return self._get_image_by_frame_number(frame_number, exact_only=exact_only, frame_idx=None)
+            return self._get_image_by_frame_number(frame_number, exact_only=exact_only)
 
     def close(self):
         if self._mode in 'wa':
