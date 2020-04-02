@@ -792,33 +792,40 @@ def test_empty(tmpdir, fmt):
     assert d.chunks == []
 
 
-@pytest.mark.parametrize('chunksize', (2,100))
-@pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
-def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
-    FNS = [6050, 6055, 6056, 0, 1, 2]
+NMTW_FNS = [6050, 6055, 6056, 0, 1, 2]
+def _non_monotonic_store_with_wrap(fmt, basedir, chunksize, save_index):
 
     s = stores.new_for_format(fmt,
-                              basedir=tmpdir.strpath,
+                              basedir=basedir,
                               imgshape=(512, 512),
                               imgdtype=np.uint8,
                               chunksize=chunksize)
 
     times = []
-    for fn in FNS:
+    for fn in NMTW_FNS:
         times.append(time.time())
         s.add_image(encode_image(fn, imgsize=512), fn, times[-1])
-    s.close()
+    s.close(save_index=save_index)
 
-    d = stores.new_for_filename(s.full_path)
+    return s.full_path, times
+
+
+@pytest.mark.parametrize('chunksize', (2, 100))
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
+def test_complex_framenumber(tmpdir, chunksize, fmt):
+    s_full_path, times = _non_monotonic_store_with_wrap(fmt, tmpdir.strpath, chunksize, save_index=False)
+
+    d = stores.new_for_filename(s_full_path)
     assert d.frame_min == 0
     assert d.frame_max == 6056
     assert d.frame_count == 6
     assert d.chunks == ([0, 1, 2] if chunksize == 2 else [0])
 
-    for fn in FNS:
+    for fn, t in zip(NMTW_FNS, times):
         frame, (frame_number, frame_timestamp) = d.get_next_image()
         assert frame.shape == (512, 512)
         assert frame_number == fn
+        assert frame_timestamp == t
         assert decode_image(frame) == fn
 
     with pytest.raises(EOFError):
@@ -835,13 +842,13 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
     assert frame_number == 2
 
     # iter in reversed to make it more interesting
-    for fn in reversed(FNS):
+    for fn in reversed(NMTW_FNS):
         frame, (frame_number, frame_timestamp) = d.get_image(fn, exact_only=True, frame_index=None)
         assert frame_number == fn
         assert decode_image(frame) == fn
 
-    for fn in reversed(FNS):
-        idx = FNS.index(fn)
+    for fn in reversed(NMTW_FNS):
+        idx = NMTW_FNS.index(fn)
         frame, (frame_number, frame_timestamp) = d.get_image(frame_number=None, exact_only=True,
                                                              frame_index=idx)
         assert frame_number == fn
@@ -877,6 +884,43 @@ def test_framenmber_non_monotonic_with_wrap(tmpdir, chunksize, fmt):
     frame, (frame_number, frame_timestamp) = d.get_nearest_image(times[0] + (3. * (times[1] - times[0]) / 4.))
     assert frame_number == 6055
     assert decode_image(frame) == 6055
+
+
+@pytest.mark.parametrize('chunksize', (2, 100))
+def test_index(tmpdir, chunksize):
+    from imgstore.constants import STORE_INDEX_FILENAME
+    from imgstore.index import ImgStoreIndex
+
+    basedir = tmpdir.strpath
+    s_full_path, times = _non_monotonic_store_with_wrap('npy', basedir, chunksize, save_index=True)
+
+    assert os.path.exists(os.path.join(basedir, STORE_INDEX_FILENAME))
+
+    idx = ImgStoreIndex.new_from_file(os.path.join(basedir, STORE_INDEX_FILENAME))
+    assert list(idx.chunks) == ([0, 1, 2] if chunksize == 2 else [0])
+
+    d = stores.new_for_filename(s_full_path)
+    assert d.chunks == list(idx.chunks)
+    assert d._chunk_n_and_chunk_paths is not None
+
+    for cn in idx.chunks:
+        assert d._index.get_chunk_metadata(cn) == idx.get_chunk_metadata(cn)
+
+    f = stores.new_for_filename(s_full_path, index=idx)
+    assert f._index is idx
+    assert f._chunk_n_and_chunk_paths is None
+
+    for fn, t in zip(NMTW_FNS, times):
+        frame, (frame_number, frame_timestamp) = d.get_next_image()
+        assert frame.shape == (512, 512)
+        assert frame_number == fn
+        assert frame_timestamp == t
+        assert decode_image(frame) == fn
+
+    assert f._chunk_n_and_chunk_paths is None
+    for _ in f._iter_chunk_n_and_chunk_paths():
+        pass
+    assert f._chunk_n_and_chunk_paths is not None
 
 
 @pytest.mark.parametrize("fmt", ['npy', 'mjpeg', 'avc1/mp4', 'h264/mkv'])

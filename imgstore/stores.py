@@ -26,8 +26,8 @@ try:
 except ImportError:
     bloscpack = None
 
-from .constants import DEVNULL, STORE_MD_FILENAME, STORE_LOCK_FILENAME, STORE_MD_KEY, EXTRA_DATA_FILE_EXTENSIONS, \
-    FRAME_MD as _FRAME_MD
+from .constants import DEVNULL, STORE_MD_FILENAME, STORE_LOCK_FILENAME, STORE_MD_KEY, \
+    STORE_INDEX_FILENAME, EXTRA_DATA_FILE_EXTENSIONS, FRAME_MD as _FRAME_MD
 from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color,\
     ensure_grayscale, motif_extra_data_h5_to_df
 from .index import ImgStoreIndex
@@ -56,7 +56,7 @@ class _ImgStore(object):
 
     # noinspection PyShadowingBuiltins
     def __init__(self, basedir, mode, imgshape=None, imgdtype=np.uint8, chunksize=None, metadata=None,
-                 encoding=None, write_encode_encoding=None, format=None):
+                 encoding=None, write_encode_encoding=None, format=None, index=None):
         if mode not in self._supported_modes:
             raise ValueError('mode not supported')
 
@@ -107,6 +107,7 @@ class _ImgStore(object):
 
         self._chunk_n = 0
         self._chunk_current_frame_idx = -1
+        self._chunk_n_and_chunk_paths = None
 
         # file pointer and filename of a file which can be used to store additional data per frame
         # (this is only created if data is actually stored)
@@ -120,12 +121,20 @@ class _ImgStore(object):
         elif mode == 'r':
             self._init_read()
 
-            t0 = time.time()
-            chunk_n_and_chunk_paths = self._find_chunks(chunk_numbers=None)
-            self._log.debug('found %s chunks in in %fs' % (len(chunk_n_and_chunk_paths), time.time() - t0))
+            self._index = None
+            if index is None:
+                # as we need to read the chunks, populate the chunk cache now too (could be an expensive operation
+                # if there are thousands of chunks)
+                t0 = time.time()
+                self._chunk_n_and_chunk_paths = self._find_chunks(chunk_numbers=None)
+                self._log.debug('found %s chunks in in %fs' % (len(self._chunk_n_and_chunk_paths), time.time() - t0))
 
-            self._index = ImgStoreIndex.new_from_chunks(chunk_n_and_chunk_paths)
-            self._chunk_n_and_chunk_paths = tuple(sorted(chunk_n_and_chunk_paths, key=operator.itemgetter(0)))
+                self._index = ImgStoreIndex.new_from_chunks(self._chunk_n_and_chunk_paths)
+            elif (index is not None) and isinstance(index, ImgStoreIndex):
+                self._log.debug('using supplied index')
+                self._index = index
+            else:
+                raise TypeError('index must be of type ImgStoreIndex')
 
             self._t0 = self._index.frame_time_min
             self._tN = self._index.frame_time_max
@@ -313,6 +322,15 @@ class _ImgStore(object):
     def _calculate_written_image_shape(self, imgshape, fmt):
         return imgshape
 
+    def _iter_chunk_n_and_chunk_paths(self):
+        if self._chunk_n_and_chunk_paths is None:
+            t0 = time.time()
+            self._chunk_n_and_chunk_paths = self._find_chunks(chunk_numbers=None)
+            self._log.debug('found %s chunks in in %fs' % (len(self._chunk_n_and_chunk_paths), time.time() - t0))
+
+        for cn, cp in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+            yield cn, cp
+
     @classmethod
     def supported_formats(cls):
         raise NotImplementedError
@@ -349,7 +367,7 @@ class _ImgStore(object):
 
     @property
     def has_extra_data(self):
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
             for ext in EXTRA_DATA_FILE_EXTENSIONS:
                 path = chunk_path + ext
                 if os.path.exists(path):
@@ -358,7 +376,7 @@ class _ImgStore(object):
 
     def find_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
         fns = []
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
             for ext in extensions:
                 path = chunk_path + ext
                 if os.path.exists(path):
@@ -367,7 +385,7 @@ class _ImgStore(object):
 
     def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []
-        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
+        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
             ext = '.extra_data.h5'
             path = chunk_path + ext
             if os.path.exists(path):
@@ -624,16 +642,29 @@ class _ImgStore(object):
         else:
             return self._get_image_by_frame_number(frame_number, exact_only=exact_only)
 
-    def close(self):
+    def close(self, save_index=False):
         if self._mode in 'wa':
             self._save_chunk(self._chunk_n, None)
+            # noinspection PyBroadException
             try:
                 if os.path.isfile(os.path.join(self._basedir, STORE_LOCK_FILENAME)):
                     os.remove(os.path.join(self._basedir, STORE_LOCK_FILENAME))
             except OSError:
+                # noinspection PyArgumentList
                 self._log.warn('could not remove lock file', exc_info=True)
             except Exception:
+                # noinspection PyArgumentList
                 self._log.warn('could not remove lock file (unknown error)', exc_info=True)
+
+            if save_index:
+                index = ImgStoreIndex.new_from_chunks(self._find_chunks(chunk_numbers=None))
+                index.to_file(os.path.join(self._basedir, STORE_INDEX_FILENAME))
+
+    def save_index(self, path=None):
+        if self._mode == 'r':
+            if path is None:
+                path = os.path.join(self._basedir, STORE_INDEX_FILENAME)
+            self._index.to_file(path)
 
     def empty(self):
         if self._mode != 'w':
@@ -650,7 +681,7 @@ class _ImgStore(object):
         self.frame_time = np.nan
 
         self._chunk_n = 0
-        self._chunk_n_and_chunk_paths = ()
+        self._chunk_n_and_chunk_paths = None
 
         if self._extra_data_fp is not None:
             self._extra_data_fp.close()
@@ -1083,8 +1114,8 @@ class VideoImgStore(_ImgStore):
     def lossless(self):
         return False
 
-    def close(self):
-        super(VideoImgStore, self).close()
+    def close(self, **kwargs):
+        super(VideoImgStore, self).close(**kwargs)
         if self._cap is not None:
             self._cap.release()
             self._cap = None
