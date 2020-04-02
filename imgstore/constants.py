@@ -12,6 +12,7 @@ except ImportError:
 STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
 STORE_LOCK_FILENAME = '.lock'
+STORE_INDEX_FILENAME = '.index.sqlite'
 
 EXTRA_DATA_FILE_EXTENSIONS = ('.extra.json', '.extra_data.json', '.extra_data.h5')
 

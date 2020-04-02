@@ -100,6 +100,11 @@ class ImgStoreIndex(object):
 
         return cls(db)
 
+    @classmethod
+    def new_from_file(cls, path):
+        db = sqlite3.connect(path)
+        return cls(db)
+
     @staticmethod
     def _get_metadata(cur):
         md = {'frame_number': [], 'frame_time': []}
@@ -112,6 +117,16 @@ class ImgStoreIndex(object):
     def chunks(self):
         """ the number of non-empty chunks that contain images """
         return self._chunks
+
+    def to_file(self, path):
+        db = sqlite3.connect(path)
+        with db:
+            for line in self._conn.iterdump():
+                # let python handle the transactions
+                if line not in ('BEGIN;', 'COMMIT;'):
+                    db.execute(line)
+        db.commit()
+        db.close()
 
     def iter_chunks_and_paths(self):
         for n in self._chunks:
