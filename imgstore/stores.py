@@ -551,7 +551,7 @@ class _ImgStore(object):
 
         try:
             # try fast to see if next frame is in currently loaded chunk
-            frame_number = self._chunk_index[idx]
+            frame_number = self._chunk_md['frame_number'][idx]
         except IndexError:
             # open the next chunk
             next_chunk = self._chunk_n + 1
@@ -562,7 +562,7 @@ class _ImgStore(object):
 
             # first frame is start of chunk
             idx = 0
-            frame_number = self._chunk_index[idx]
+            frame_number = self._chunk_md['frame_number'][idx]
 
         return frame_number, idx
 
@@ -867,7 +867,6 @@ class DirectoryImgStore(_ImgStore):
             self._log.debug('loading chunk %s' % n)
             self._chunk_cdir = cdir
             self._chunk_md = self._index.get_chunk_metadata(n)
-            self._chunk_index = self._chunk_md['frame_number']
 
         self._chunk_n = n
         self._chunk_current_frame_idx = -1  # not used in DirectoryImgStore, but maintain compat
@@ -1078,7 +1077,6 @@ class VideoImgStore(_ImgStore):
                 raise Exception("OpenCV unable to open %s" % fn)
 
             self._chunk_md = self._index.get_chunk_metadata(n)
-            self._chunk_index = self._chunk_md['frame_number']
 
         self._chunk_n = n
 
