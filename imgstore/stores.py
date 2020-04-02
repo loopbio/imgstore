@@ -26,24 +26,12 @@ try:
 except ImportError:
     bloscpack = None
 
-try:
-    # python 3
-    from subprocess import DEVNULL
-    # noinspection PyShadowingBuiltins
-    xrange = range
-except ImportError:
-    # python 2
-    DEVNULL = open(os.devnull, 'r+b')
-
+from .constants import DEVNULL, STORE_MD_FILENAME, STORE_LOCK_FILENAME, STORE_MD_KEY, EXTRA_DATA_FILE_EXTENSIONS, \
+    FRAME_MD as _FRAME_MD
 from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color,\
     ensure_grayscale, motif_extra_data_h5_to_df
+from .index import ImgStoreIndex
 
-
-STORE_MD_KEY = '__store'
-STORE_MD_FILENAME = 'metadata.yaml'
-STORE_LOCK_FILENAME = '.lock'
-
-EXTRA_DATA_FILE_EXTENSIONS = ('.extra.json', '.extra_data.json', '.extra_data.h5')
 
 _VERBOSE_DEBUG_GETS = False
 _VERBOSE_DEBUG_CHUNKS = False
@@ -56,11 +44,15 @@ def _extract_store_metadata(full_path):
     return allmd.pop(STORE_MD_KEY)
 
 
+# note: frame_idx always refers to the frame_idx within the chunk
+# whereas frame_index refers to the global frame_index from (0, frame_count]
+
+
 class _ImgStore(object):
     _version = 2
     _supported_modes = ''
 
-    FRAME_MD = ('frame_number', 'frame_time')
+    FRAME_MD = _FRAME_MD
 
     # noinspection PyShadowingBuiltins
     def __init__(self, basedir, mode, imgshape=None, imgdtype=np.uint8, chunksize=None, metadata=None,
@@ -86,7 +78,6 @@ class _ImgStore(object):
 
         self._metadata = {}
         self._user_metadata = {}
-        self._frame_time_cache = None
 
         self._tN = self._t0 = time.time()
 
@@ -117,11 +108,6 @@ class _ImgStore(object):
         self._chunk_n = 0
         self._chunk_current_frame_idx = -1
 
-        self._chunk_n_and_chunk_paths = ()
-
-        # all chunks in the store [0,1,2, ... ]
-        self._chunks = []
-
         # file pointer and filename of a file which can be used to store additional data per frame
         # (this is only created if data is actually stored)
         self._extra_data_fp = self._extra_data_fn = None
@@ -132,32 +118,26 @@ class _ImgStore(object):
             self._frame_n = 0
             self._init_write(imgshape, imgdtype, chunksize, metadata, encoding, write_encode_encoding, format)
         elif mode == 'r':
-            # the index is a dict of tuples -> chunk_n
-            # each tuple describes a contiguous series of framenumbers
-            # e.g. (3,9) -> 5
-            # means frames 3-9 are contained in chunk 5
-            self._index = {}
-            # for lookup by global index we also maintain a list of the chunk lengths
-            self._index_chunklens = []  # [(chunk_n, chunk_len)]
-            # the chunk index is a list of framenumbers for the currently loaded chunk,
-            # the index of the framenumber is the position in the chunk
-            self._chunk_index = []
             self._init_read()
 
             t0 = time.time()
-            self._chunk_n_and_chunk_paths = self._find_chunks(chunk_numbers=None)
-            self._log.debug('found %s chunks in in %fs' % (len(self._chunk_n_and_chunk_paths), time.time() - t0))
+            chunk_n_and_chunk_paths = self._find_chunks(chunk_numbers=None)
+            self._log.debug('found %s chunks in in %fs' % (len(chunk_n_and_chunk_paths), time.time() - t0))
 
-            self._build_index(self._chunk_n_and_chunk_paths)
+            self._index = ImgStoreIndex.new_from_chunks(chunk_n_and_chunk_paths)
+            self._chunk_n_and_chunk_paths = tuple(sorted(chunk_n_and_chunk_paths, key=operator.itemgetter(0)))
+
+            self._t0 = self._index.frame_time_min
+            self._tN = self._index.frame_time_max
+            self.frame_count = self._index.frame_count
+            self.frame_min = self._index.frame_min
+            self.frame_max = self._index.frame_max
 
             # reset to the start of the file and load the first chunk
             self._load_chunk(0)
             assert self._chunk_current_frame_idx == -1
             assert self._chunk_n == 0
             self.frame_number = np.nan  # we haven't read any frames yet
-
-            # note: frame_idx always refers to the frame_idx within the chunk
-            # whereas frame_index refers to the global frame_index from (0, frame_count]
 
     def __enter__(self):
         return self
@@ -347,10 +327,12 @@ class _ImgStore(object):
         if extension == '.yaml':
             with open(path_with_extension, 'wt') as f:
                 yaml.safe_dump(data_dict, f)
+                return path_with_extension
         elif extension == '.npz':
             with open(path_with_extension, 'wb') as f:
                 # noinspection PyTypeChecker
                 np.savez(f, **data_dict)
+                return path_with_extension
         else:
             raise ValueError('unknown index format: %s' % extension)
 
@@ -360,76 +342,14 @@ class _ImgStore(object):
             path = path_without_extension + extension
             if os.path.exists(path):
                 os.unlink(path)
-
-    @staticmethod
-    def _load_index(path_without_extension):
-        for extension in ('.npz', '.yaml'):
-            path = path_without_extension + extension
-            if os.path.exists(path):
-                if extension == '.yaml':
-                    with open(path, 'rt') as f:
-                        dat = yaml.safe_load(f)
-                        return {k: dat[k] for k in _ImgStore.FRAME_MD}
-                elif extension == '.npz':
-                    with open(path, 'rb') as f:
-                        dat = np.load(f)
-                        return {k: dat[k].tolist() for k in _ImgStore.FRAME_MD}
-
-        raise IOError('could not find index %s' % path_without_extension)
-
-    def _build_index(self, chunk_n_and_chunk_paths):
-        t0 = time.time()
-        for chunk_n, chunk_path in sorted(chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
-            try:
-                idx = self._load_index(chunk_path)
-            except IOError:
-                self._log.warn('missing index for chunk %s' % chunk_n)
-                continue
-
-            if not idx['frame_number']:
-                # empty chunk
-                continue
-
-            self._chunks.append(chunk_n)
-
-            chunk_len = len(idx['frame_number'])
-            self.frame_count += chunk_len
-            self._t0 = min(self._t0, np.min(idx['frame_time']))
-            self._tN = max(self._tN, np.max(idx['frame_time']))
-
-            for frame_range in _extract_ranges(idx['frame_number']):
-                self._index[frame_range] = chunk_n
-                if _VERBOSE_DEBUG_CHUNKS:
-                    self._log.debug('index:framenumbers chunk: %d holds:%r' % (chunk_n, frame_range))
-            self._index_chunklens.append((chunk_n, chunk_len))
-
-        if _VERBOSE_DEBUG_CHUNKS:
-            _chunk_range = xrange(0, -2, -1)
-            for _chunk_n, _chunk_len in self._index_chunklens:
-                _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
-                self._log.debug('index:index chunk: %d holds:%r' % (_chunk_n, list(_chunk_range)))
-
-        self._log.debug('built index in %fs' % (time.time() - t0))
-
-        self.frame_min = np.nan if 0 == len(self._index) else min(low for low, _ in self._index)
-        self.frame_max = np.nan if 0 == len(self._index) else max(high for _, high in self._index)
-
-        self._log.debug('frame range %f -> %f' % (self.frame_min, self.frame_max))
-
-    def _load_chunk_metadata(self, path_without_extension):
-        self._chunk_md = self._load_index(path_without_extension)
+                return path
 
     def get_frame_metadata(self):
-        dat = {k: [] for k in _ImgStore.FRAME_MD}
-        for chunk_n, chunk_path in self._find_chunks(self.chunks):
-            idx = self._load_index(chunk_path)
-            for k in _ImgStore.FRAME_MD:
-                dat[k].extend(idx[k])
-        return dat
+        return self._index.get_all_metadata()
 
     @property
     def has_extra_data(self):
-        for chunk_n, chunk_path in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
             for ext in EXTRA_DATA_FILE_EXTENSIONS:
                 path = chunk_path + ext
                 if os.path.exists(path):
@@ -438,7 +358,7 @@ class _ImgStore(object):
 
     def find_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
         fns = []
-        for chunk_n, chunk_path in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
             for ext in extensions:
                 path = chunk_path + ext
                 if os.path.exists(path):
@@ -447,7 +367,7 @@ class _ImgStore(object):
 
     def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []
-        for chunk_n, chunk_path in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0)):
+        for chunk_n, chunk_path in self._chunk_n_and_chunk_paths:
             ext = '.extra_data.h5'
             path = chunk_path + ext
             if os.path.exists(path):
@@ -455,8 +375,8 @@ class _ImgStore(object):
                     dfs.append(motif_extra_data_h5_to_df(path))
                 except IOError:
                     if ignore_corrupt_chunks:
-                        continue
                         self._log.warn('chunk %s is corrupt' % path)
+                        continue
                     else:
                         raise
             else:
@@ -469,6 +389,7 @@ class _ImgStore(object):
                             except ValueError:
                                 if ignore_corrupt_chunks:
                                     self._log.warn('chunk %s is corrupt' % path)
+                                    continue
                                 else:
                                     raise
                         dfs.append(pd.DataFrame(records))
@@ -525,7 +446,11 @@ class _ImgStore(object):
 
     @property
     def chunks(self):
-        return sorted(set(self._index.values()))
+        """ the number of non-empty chunks that contain images """
+        if self._mode == 'r':
+            return list(self._index.chunks)
+        else:
+            return list(range(0, self._chunk_n))
 
     @property
     def user_metadata(self):
@@ -598,21 +523,23 @@ class _ImgStore(object):
             new = self._chunk_n + 1
             self._save_chunk(old, new)
             self._chunk_n = new
-            self._chunks.append(new)
 
         self.frame_count = self._frame_n
 
     def _get_next_framenumber_and_chunk_frame_idx(self):
         idx = self._chunk_current_frame_idx + 1
+
         try:
+            # try fast to see if next frame is in currently loaded chunk
             frame_number = self._chunk_index[idx]
         except IndexError:
             # open the next chunk
             next_chunk = self._chunk_n + 1
-            if next_chunk not in self._chunks:
+            if next_chunk not in self._index.chunks:
                 raise EOFError
 
             self._load_chunk(next_chunk)
+
             # first frame is start of chunk
             idx = 0
             frame_number = self._chunk_index[idx]
@@ -622,6 +549,18 @@ class _ImgStore(object):
     def get_next_framenumber(self):
         return self._get_next_framenumber_and_chunk_frame_idx()[0]
 
+    def _get_image(self, chunk_n, frame_idx):
+        if chunk_n is not None:
+            self._load_chunk(chunk_n)
+
+        # ensure the read works before setting frame_number
+        _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
+        img = self._decode_image(_img)
+        self._chunk_current_frame_idx = frame_idx
+        self.frame_number = _frame_number
+
+        return img, (_frame_number, _frame_timestamp)
+
     def get_next_image(self):
         frame_number, idx = self._get_next_framenumber_and_chunk_frame_idx()
         assert idx is not None
@@ -629,13 +568,8 @@ class _ImgStore(object):
         if _VERBOSE_DEBUG_GETS:
             self._log.debug('get_next_image frame_number: %s idx %s' % (frame_number, idx))
 
-        # ensure the read works before setting frame_number
-        _img, (_frame_number, _frame_timestamp) = self._load_image(idx)
-        img = self._decode_image(_img)
-        self._chunk_current_frame_idx = idx
-        self.frame_number = _frame_number
-
-        return img, (_frame_number, _frame_timestamp)
+        return self._get_image(chunk_n=None,  # chunk was already loaded in _get_next_framenumber_and_chunk_frame_idx
+                               frame_idx=idx)
 
     def _get_image_by_frame_index(self, frame_index):
         """
@@ -647,106 +581,32 @@ class _ImgStore(object):
         if _VERBOSE_DEBUG_CHUNKS:
             self._log.debug('seek by frame_index %s' % frame_index)
 
-        # go through the global index and find where our index is
-        chunk_n = frame_idx = -1
-
-        _chunk_range = xrange(0, -2, -1)
-        for _chunk_n, _chunk_len in self._index_chunklens:
-            _chunk_range = xrange(_chunk_range[-1] + 1, _chunk_range[-1] + 1 + _chunk_len)
-            if frame_index in _chunk_range:
-                chunk_n = _chunk_n
-                # make chunk relative
-                frame_idx = frame_index - _chunk_range[0]
-                break
+        chunk_n, frame_idx = self._index.find_chunk('index', frame_index)
 
         if chunk_n == -1:
             raise ValueError('frame_index %s not found in index' % frame_index)
 
-        # reset to start of chunk for load_image
-        self._load_chunk(chunk_n)
-
         self._log.debug('seek found in chunk %d attempt read chunk index %d' % (self._chunk_n, frame_idx))
 
-        # ensure the read works before setting frame_number
-        _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
-        img = self._decode_image(_img)
-
-        self._chunk_current_frame_idx = frame_idx
-        self.frame_number = _frame_number
-
-        return img, (_frame_number, _frame_timestamp)
+        return self._get_image(chunk_n, frame_idx)
 
     def _get_image_by_frame_number(self, frame_number, exact_only):
-        # there is a high likelihood the current chunk holds the next frame
-        # so look there first
-
         if _VERBOSE_DEBUG_CHUNKS:
             self._log.debug('seek by frame_number %s (exact: %s)' % (frame_number, exact_only))
 
-        try:
-            frame_idx = self._chunk_index.index(frame_number)
-        except ValueError:
-            frame_idx = None
+        if exact_only:
+            chunk_n, frame_idx = self._index.find_chunk('frame_number', frame_number)
+        else:
+            chunk_n, frame_idx = self._index.find_chunk_nearest('frame_number', frame_number)
 
-        if frame_idx is None:
-            chunk_n = -1
-            found = False
-            for fn_range, chunk_n in self._index.items():
-                if (frame_number >= fn_range[0]) and (frame_number <= fn_range[1]):
-                    found = True
-                    break
+        if chunk_n == -1:
+            raise ValueError('frame #%s not found in any chunk' % frame_number)
 
-            if not found:
-                if exact_only:
-                    raise ValueError('frame #%s not found in any chunk' % frame_number)
-                else:
-                    # iterate the index again! and find the nearest frame
-                    fns = np.array(list(self._index.keys())).flatten()
-                    chunks = list(self._index.values())
+        return self._get_image(chunk_n, frame_idx)
 
-                    # find distance between desired frame, and the nearest chunk range
-                    diffs = np.abs(fns - frame_number)
-                    # find the index of the minimum difference
-                    _fn_index = np.argmin(diffs)
-                    # consecutive elements of the flattened range array refer to the same
-                    _chunk_idx = _fn_index // 2
-
-                    orig_frame_number = frame_number
-
-                    # the closest chunk
-                    # noinspection PyTypeChecker
-                    chunk_n = chunks[_chunk_idx]
-                    frame_number = fns[_fn_index]
-                    self._log.debug("closest frame to %s is %s (chunk %s)" % (orig_frame_number, frame_number, chunk_n))
-
-            self._load_chunk(chunk_n)
-            try:
-                frame_idx = self._chunk_index.index(frame_number)
-            except ValueError:
-                raise ValueError('%s %s not found in chunk %s' % ('frame_number', frame_number, chunk_n))
-
-        if _VERBOSE_DEBUG_CHUNKS:
-            self._log.debug('seek found in chunk %d attempt read chunk index %d' % (self._chunk_n, frame_idx))
-
-        # ensure the read works before setting frame_number
-        _img, (_frame_number, _frame_timestamp) = self._load_image(frame_idx)
-        img = self._decode_image(_img)
-        self._chunk_current_frame_idx = frame_idx
-        self.frame_number = _frame_number
-
-        return img, (_frame_number, _frame_timestamp)
-
-    @property
-    def _frame_times(self):
-        if self._frame_time_cache is None:
-            self._frame_time_cache = np.asarray(self.get_frame_metadata()['frame_time'])
-        return self._frame_time_cache
-
-    def get_nearest_image(self, frame_time, tolerance=None, side='left'):
-        idx = np.searchsorted(self._frame_times, frame_time, side=side)
-        if _VERBOSE_DEBUG_GETS:
-            self._log.debug('get_nearest_image frame_time %s side %s idx= %s' % (frame_time, side, idx))
-        return self.get_image(frame_number=None, frame_index=idx)
+    def get_nearest_image(self, frame_time):
+        chunk_n, frame_idx = self._index.find_chunk_nearest('frame_time', frame_time)
+        return self._get_image(chunk_n, frame_idx)
 
     def get_image(self, frame_number, exact_only=True, frame_index=None):
         """
@@ -791,7 +651,6 @@ class _ImgStore(object):
 
         self._chunk_n = 0
         self._chunk_n_and_chunk_paths = ()
-        self._chunks = []
 
         if self._extra_data_fp is not None:
             self._extra_data_fp.close()
@@ -820,9 +679,8 @@ class _ImgStore(object):
         fn_new = fn[:]
         fn_new[:zero_idx] = range(-zero_idx, 0)
 
-        for chunk_n, chunk_path in sorted(self._find_chunks(chunk_numbers=None), key=operator.itemgetter(0)):
-            # noinspection PyUnresolvedReferences
-            ind = self._load_index(chunk_path)
+        for chunk_n, chunk_path in self._index.iter_chunks_and_paths():
+            ind = self._index.get_chunk_metadata(chunk_n)
 
             ofn = ind['frame_number'][:]
             nfn = fn_new[chunk_n*self._chunksize:(chunk_n*self._chunksize) + self._chunksize]
@@ -832,11 +690,10 @@ class _ImgStore(object):
                        'frame_number': nfn,
                        '_frame_number_before_reindex': ofn}
 
-            # noinspection PyUnresolvedReferences
-            self._remove_index(chunk_path)
-            self._save_index(chunk_path + '.npz', new_ind)
-
-            self._log.debug('reindexed chunk %d (%s)' % (chunk_n, chunk_path))
+            _path = self._remove_index(chunk_path)
+            self._log.debug('reindex chunk %s removed: %s' % (chunk_n, _path))
+            _path = self._save_index(chunk_path + '.npz', new_ind)
+            self._log.debug('reindex chunk %s wrote: %s' % (chunk_n, _path))
 
             for ext in ('.extra.json', '.extra_data.json'):
                 ed_path = chunk_path + ext
@@ -976,7 +833,7 @@ class DirectoryImgStore(_ImgStore):
         if cdir != self._chunk_cdir:
             self._log.debug('loading chunk %s' % n)
             self._chunk_cdir = cdir
-            self._load_chunk_metadata(os.path.join(self._chunk_cdir, 'index'))
+            self._chunk_md = self._index.get_chunk_metadata(n)
             self._chunk_index = self._chunk_md['frame_number']
 
         self._chunk_n = n
@@ -1107,7 +964,7 @@ class VideoImgStore(_ImgStore):
     @property
     def _chunk_paths(self):
         ext = self._ext
-        return ['%s%s' % (p[1], ext) for p in sorted(self._chunk_n_and_chunk_paths, key=operator.itemgetter(0))]
+        return ['%s%s' % (p[1], ext) for p in self._chunk_n_and_chunk_paths]
 
     def _find_chunks(self, chunk_numbers):
         if chunk_numbers is None:
@@ -1187,7 +1044,7 @@ class VideoImgStore(_ImgStore):
             if not self._cap.isOpened():
                 raise Exception("OpenCV unable to open %s" % fn)
 
-            self._load_chunk_metadata(os.path.join(self._basedir, '%06d' % n))
+            self._chunk_md = self._index.get_chunk_metadata(n)
             self._chunk_index = self._chunk_md['frame_number']
 
         self._chunk_n = n
@@ -1235,6 +1092,7 @@ class VideoImgStore(_ImgStore):
 
     def empty(self):
         _ImgStore.empty(self)
+        # use find_chunks because it removes also invalid chunks
         for _, chunk_path in self._find_chunks(chunk_numbers=None):
             os.unlink(chunk_path + self._ext)
             self._remove_index(chunk_path)
@@ -1246,7 +1104,6 @@ class VideoImgStore(_ImgStore):
         self._new_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
         self._chunk_md['frame_number'] = np.asarray(frame_numbers)
         self._chunk_md['frame_time'] = np.asarray(frame_times)
-
         self._save_chunk_metadata(os.path.join(self._basedir, '%06d' % self._chunk_n))
 
         vid = os.path.join(self._basedir, '%06d%s' % (self._chunk_n, self._ext))
