@@ -920,3 +920,37 @@ def test_max_framenumber_behaviour(fmt, nframes, seek, tmpdir):
     with pytest.raises(ValueError):
         store.get_image(frame_number=None, exact_only=True, frame_index=store.frame_count)
 
+
+@pytest.mark.parametrize('chunksize', (2, 100))
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
+def test_extra_data(tmpdir, chunksize, fmt):
+
+    s = stores.new_for_format(fmt,
+                              basedir=tmpdir.strpath,
+                              imgshape=(512, 512),
+                              imgdtype=np.uint8,
+                              chunksize=chunksize)
+
+    frame_extra = {}
+    for fn in range(30):
+        s.add_image(encode_image(fn, imgsize=512), fn, time.time())
+
+        i = fn + 42
+        s.add_extra_data(N=i)
+        frame_extra[i] = dict(N=i)
+
+    s.close()
+
+    d = stores.new_for_filename(s.full_path)
+
+    assert d.has_extra_data
+
+    df = d.get_extra_data()
+    assert len(df) == len(frame_extra)
+    df.set_index('frame_number', inplace=True, verify_integrity=True)
+    for _i, _v in frame_extra.items():
+        fn = _i - 42
+        _row = df.loc[fn]
+        assert _row['N'] == _i
+
+    d.close()
