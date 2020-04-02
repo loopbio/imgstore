@@ -69,7 +69,7 @@ class ImgStoreIndex(object):
         c = conn.cursor()
         # Create table
         c.execute('CREATE TABLE frames '
-                  '(chunk INTEGER, chunk_path TEXT, frame_idx INTEGER, frame_number INTEGER, frame_time REAL)')
+                  '(chunk INTEGER, frame_idx INTEGER, frame_number INTEGER, frame_time REAL)')
         c.execute('CREATE TABLE index_information '
                   '(name TEXT, value TEXT)')
         c.execute('INSERT into index_information VALUES (?, ?)', ('version', cls.VERSION))
@@ -93,9 +93,9 @@ class ImgStoreIndex(object):
                 # empty chunk
                 continue
 
-            records = [(chunk_n, chunk_path, i, fn, ft) for i, (fn, ft) in enumerate(zip(idx['frame_number'],
-                                                                                         idx['frame_time']))]
-            cur.executemany('INSERT INTO frames VALUES (?,?,?,?,?)', records)
+            records = [(chunk_n, i, fn, ft) for i, (fn, ft) in enumerate(zip(idx['frame_number'],
+                                                                             idx['frame_time']))]
+            cur.executemany('INSERT INTO frames VALUES (?,?,?,?)', records)
             db.commit()
 
         return cls(db)
@@ -127,12 +127,6 @@ class ImgStoreIndex(object):
                     db.execute(line)
         db.commit()
         db.close()
-
-    def iter_chunks_and_paths(self):
-        for n in self._chunks:
-            cur = self._conn.cursor()
-            cur.execute("SELECT chunk_path FROM frames WHERE chunk = ? LIMIT 1;", (n, ))
-            yield n, cur.fetchone()[0]
 
     def get_all_metadata(self):
         cur = self._conn.cursor()

@@ -710,7 +710,7 @@ class _ImgStore(object):
         fn_new = fn[:]
         fn_new[:zero_idx] = range(-zero_idx, 0)
 
-        for chunk_n, chunk_path in self._index.iter_chunks_and_paths():
+        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
             ind = self._index.get_chunk_metadata(chunk_n)
 
             ofn = ind['frame_number'][:]
