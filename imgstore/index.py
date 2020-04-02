@@ -67,15 +67,17 @@ class ImgStoreIndex(object):
         self.log.debug('frame range %f -> %f' % (self.frame_min, self.frame_max))
 
         # # all chunks in the store [0,1,2, ... ]
-        cur.execute('SELECT DISTINCT chunk FROM frames ORDER BY chunk;')
+        cur.execute('SELECT chunk FROM chunks ORDER BY chunk;')
         self._chunks = tuple(row[0] for row in cur)
 
     @classmethod
     def create_database(cls, conn):
         c = conn.cursor()
-        # Create table
+        # Create tables
         c.execute('CREATE TABLE frames '
                   '(chunk INTEGER, frame_idx INTEGER, frame_number INTEGER, frame_time REAL)')
+        c.execute('CREATE TABLE chunks '
+                  '(chunk INTEGER, chunk_path TEXT)')
         c.execute('CREATE TABLE index_information '
                   '(name TEXT, value TEXT)')
         c.execute('CREATE TABLE summary '
@@ -116,6 +118,8 @@ class ImgStoreIndex(object):
             records = [(chunk_n, i, fn, ft) for i, (fn, ft) in enumerate(zip(idx['frame_number'],
                                                                              idx['frame_time']))]
             cur.executemany('INSERT INTO frames VALUES (?,?,?,?)', records)
+            cur.execute('INSERT INTO chunks VALUES (?, ?)', (chunk_n, chunk_path))
+
             db.commit()
 
         cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_min', frame_time_min))
