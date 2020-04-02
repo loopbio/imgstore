@@ -87,7 +87,7 @@ class ImgStoreIndex(object):
 
     @classmethod
     def new_from_chunks(cls, chunk_n_and_chunk_paths):
-        db = sqlite3.connect(':memory:')
+        db = sqlite3.connect(':memory:', check_same_thread=False)
         cls.create_database(db)
 
         frame_count = 0
@@ -131,7 +131,7 @@ class ImgStoreIndex(object):
 
     @classmethod
     def new_from_file(cls, path):
-        db = sqlite3.connect(path)
+        db = sqlite3.connect(path, check_same_thread=False)
         return cls(db)
 
     @staticmethod
