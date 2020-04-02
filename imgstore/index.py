@@ -45,15 +45,21 @@ class ImgStoreIndex(object):
         cur.execute('SELECT COUNT(1) FROM frames')
         self.frame_count, = cur.fetchone()
 
-        def _minmax(_s):
-            cur.execute('SELECT {} FROM frames;'.format(_s))
+        def _summary(_what):
+            cur.execute('SELECT value FROM summary WHERE name = ?', (_what,))
             return cur.fetchone()[0]
 
         if self.frame_count:
-            self.frame_time_max = _minmax('MAX(frame_time)')
-            self.frame_time_min = _minmax('MIN(frame_time)')
-            self.frame_max = _minmax('MAX(frame_number)')
-            self.frame_min = _minmax('MIN(frame_number)')
+            self.frame_time_max = _summary('frame_time_max')
+            self.frame_time_min = _summary('frame_time_min')
+            self.frame_max = _summary('frame_max')
+            self.frame_min = _summary('frame_min')
+
+            # keep back compat for nan as types (inf -> nan)
+            if not np.isreal(self.frame_max):
+                self.frame_max = np.nan
+            if not np.isreal(self.frame_min):
+                self.frame_min = np.nan
         else:
             self.frame_max = self.frame_min = np.nan
             self.frame_time_max = self.frame_time_min = 0.0
@@ -72,6 +78,8 @@ class ImgStoreIndex(object):
                   '(chunk INTEGER, frame_idx INTEGER, frame_number INTEGER, frame_time REAL)')
         c.execute('CREATE TABLE index_information '
                   '(name TEXT, value TEXT)')
+        c.execute('CREATE TABLE summary '
+                  '(name TEXT, value REAL)')
         c.execute('INSERT into index_information VALUES (?, ?)', ('version', cls.VERSION))
         conn.commit()
 
@@ -79,6 +87,12 @@ class ImgStoreIndex(object):
     def new_from_chunks(cls, chunk_n_and_chunk_paths):
         db = sqlite3.connect(':memory:')
         cls.create_database(db)
+
+        frame_count = 0
+        frame_max = -np.inf
+        frame_min = np.inf
+        frame_time_max = -np.inf
+        frame_time_min = np.inf
 
         cur = db.cursor()
 
@@ -93,10 +107,21 @@ class ImgStoreIndex(object):
                 # empty chunk
                 continue
 
+            frame_count += len(idx['frame_number'])
+            frame_time_min = min(frame_time_min, np.min(idx['frame_time']))
+            frame_time_max = max(frame_time_max, np.max(idx['frame_time']))
+            frame_min = min(frame_min, np.min(idx['frame_number']))
+            frame_max = max(frame_max, np.max(idx['frame_number']))
+
             records = [(chunk_n, i, fn, ft) for i, (fn, ft) in enumerate(zip(idx['frame_number'],
                                                                              idx['frame_time']))]
             cur.executemany('INSERT INTO frames VALUES (?,?,?,?)', records)
             db.commit()
+
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_min', frame_time_min))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_max', frame_time_max))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_min', frame_min))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_max', frame_max))
 
         return cls(db)
 

@@ -492,7 +492,9 @@ class _ImgStore(object):
 
     @property
     def duration(self):
-        return self._tN - self._t0
+        if np.isreal(self._tN) and np.isreal(self._t0):
+            return self._tN - self._t0
+        return 0.
 
     @property
     def mode(self):
