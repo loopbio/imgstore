@@ -84,6 +84,7 @@ class ImgStoreIndex(object):
         c.execute('CREATE TABLE summary '
                   '(name TEXT, value REAL)')
         c.execute('INSERT into index_information VALUES (?, ?)', ('version', cls.VERSION))
+        c.execute("CREATE INDEX chunk_index ON frames (chunk, frame_idx);")
         conn.commit()
 
     @classmethod
