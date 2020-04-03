@@ -122,10 +122,12 @@ class ImgStoreIndex(object):
 
             db.commit()
 
-        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_min', frame_time_min))
-        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_max', frame_time_max))
-        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_min', frame_min))
-        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_max', frame_max))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_min', float(frame_time_min)))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_time_max', float(frame_time_max)))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_min', float(frame_min)))
+        cur.execute('INSERT INTO summary VALUES (?,?)', ('frame_max', float(frame_max)))
+
+        db.commit()
 
         return cls(db)
 
