@@ -36,6 +36,7 @@ class ImgStoreIndex(object):
         self._conn = db
 
         cur = self._conn.cursor()
+        cur.execute('pragma query_only = ON;')
 
         cur.execute('SELECT value FROM index_information WHERE name = ?', ('version', ))
         v, = cur.fetchone()
