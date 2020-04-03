@@ -888,7 +888,7 @@ def test_complex_framenumber(tmpdir, chunksize, fmt):
 
 @pytest.mark.parametrize('chunksize', (2, 100))
 def test_index(tmpdir, chunksize):
-    from imgstore.constants import STORE_INDEX_FILENAME
+    from imgstore.constants import STORE_INDEX_FILENAME, FRAME_MD
     from imgstore.index import ImgStoreIndex
 
     basedir = tmpdir.strpath
@@ -904,7 +904,11 @@ def test_index(tmpdir, chunksize):
     assert d._chunk_n_and_chunk_paths is not None
 
     for cn in idx.chunks:
-        assert d._index.get_chunk_metadata(cn) == idx.get_chunk_metadata(cn)
+        mdd = d._index.get_chunk_metadata(cn)
+        mdi = idx.get_chunk_metadata(cn)
+
+        for n in FRAME_MD:
+            assert tuple(mdd[n]) == tuple(mdi[n])
 
     f = stores.new_for_filename(s_full_path, index=idx)
     assert f._index is idx

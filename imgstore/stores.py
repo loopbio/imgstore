@@ -715,11 +715,13 @@ class _ImgStore(object):
         for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
             ind = self._index.get_chunk_metadata(chunk_n)
 
-            ofn = ind['frame_number'][:]
+            oft = list(ind['frame_time'])
+
+            ofn = list(ind['frame_number'])
             nfn = fn_new[chunk_n*self._chunksize:(chunk_n*self._chunksize) + self._chunksize]
             assert len(ofn) == len(nfn)
 
-            new_ind = {'frame_time': ind['frame_time'],
+            new_ind = {'frame_time': oft,
                        'frame_number': nfn,
                        '_frame_number_before_reindex': ofn}
 
