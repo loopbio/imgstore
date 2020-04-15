@@ -117,8 +117,13 @@ class ImgStoreIndex(object):
             frame_min = min(frame_min, np.min(idx['frame_number']))
             frame_max = max(frame_max, np.max(idx['frame_number']))
 
-            records = [(chunk_n, i, fn, ft) for i, (fn, ft) in enumerate(zip(idx['frame_number'],
-                                                                             idx['frame_time']))]
+            try:
+                records = [(chunk_n, i, fn, ft) for i, (fn, ft) in enumerate(zip(idx['frame_number'],
+                                                                                 idx['frame_time']))]
+            except TypeError:
+                cls.log.error('corrupt chunk', exc_info=True)
+                continue
+
             cur.executemany('INSERT INTO frames VALUES (?,?,?,?)', records)
             cur.execute('INSERT INTO chunks VALUES (?, ?)', (chunk_n, chunk_path))
 
