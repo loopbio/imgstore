@@ -1002,3 +1002,23 @@ def test_extra_data(tmpdir, chunksize, fmt):
         assert _row['N'] == _i
 
     d.close()
+
+
+@pytest.mark.parametrize("nframes", [0,1])
+@pytest.mark.parametrize("fmt", ['npy', 'mjpeg'])
+def test_short(tmpdir, nframes, fmt):
+
+    with stores.new_for_format(fmt,
+                               basedir=tmpdir.strpath,
+                               imgshape=(512, 512),
+                               imgdtype=np.uint8,
+                               chunksize=13) as s:
+        for fn in range(nframes):
+            s.add_image(encode_image(fn, imgsize=512), fn, time.time())
+
+    d = stores.new_for_filename(s.full_path)
+    assert d.frame_count == nframes
+
+    for i in range(nframes):
+        img, (_fn, _) = d.get_image(frame_number=i, exact_only=True)
+        assert decode_image(img) == i
