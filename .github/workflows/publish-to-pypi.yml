@@ -1,0 +1,35 @@
+name: Upload Python Package
+
+on: [push]
+
+# I choose to use 18.04 and the default 18.04 python version (3.6)
+# even though the PyPa guide recommends 3.7 and the $NEXT_NEW python
+# packaging thing (pep 517) :eyeroll:
+
+jobs:
+  build-n-publish:
+    name: Build and publish Python distributions to PyPI and TestPyPI
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@master
+    - name: Set up Python 3.6
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.6
+    - name: Install dependencies
+      run: |
+        python3.6 -m pip install --upgrade pip
+        python3.6 -m pip install setuptools wheel
+    - name: Build
+      run: |
+        python3.6 setup.py sdist bdist_wheel
+    - name: Publish distribution to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.test_pypi_password }}
+        repository_url: https://test.pypi.org/legacy/
+    - name: Publish distribution to PyPI
+      if: startsWith(github.event.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.pypi_password }}
