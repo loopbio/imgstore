@@ -29,7 +29,7 @@ except ImportError:
 from .constants import DEVNULL, STORE_MD_FILENAME, STORE_LOCK_FILENAME, STORE_MD_KEY, \
     STORE_INDEX_FILENAME, EXTRA_DATA_FILE_EXTENSIONS, FRAME_MD as _FRAME_MD
 from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color,\
-    ensure_grayscale, motif_extra_data_h5_to_df
+    ensure_grayscale, motif_extra_data_h5_to_df, motif_extra_data_json_to_df
 from .index import ImgStoreIndex
 
 
@@ -365,52 +365,89 @@ class _ImgStore(object):
     def get_frame_metadata(self):
         return self._index.get_all_metadata()
 
+    def _iter_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
+        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
+            out = None
+
+            # motif out of process IO puts extra data in the root directory
+            for ext in ('.extra_data.h5', '.extra_data.json'):
+
+                if ext not in extensions:
+                    continue
+
+                path = os.path.join(self._basedir, '%06d%s' % (int(chunk_n), ext))
+                if os.path.exists(path):
+                    out = True, path
+                    break
+                else:
+                    out = None
+
+            else:
+                # for .. else
+                #
+                # if we _didn't_ break above then we enter here
+
+                # imgstore API puts them beside the index,
+                # which is a subdir for dirimgstores
+                for ext in ('.extra.json', '.extra_data.json'):
+
+                    if ext not in extensions:
+                        continue
+
+                    path = chunk_path + ext
+                    if os.path.exists(path):
+                        out = False, path
+                    else:
+                        out = None
+
+            if out is not None:
+                yield out
+
     @property
     def has_extra_data(self):
-        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
-            for ext in EXTRA_DATA_FILE_EXTENSIONS:
-                path = chunk_path + ext
-                if os.path.exists(path):
-                    return True
+        for _ in self._iter_chunk_n_and_chunk_paths():
+            return True
         return False
 
     def find_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
-        fns = []
-        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
-            for ext in extensions:
-                path = chunk_path + ext
-                if os.path.exists(path):
-                    fns.append(path)
-        return fns
+        return [path for _, path in self._iter_extra_data_files(extensions=extensions)]
 
     def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []
-        for chunk_n, chunk_path in self._iter_chunk_n_and_chunk_paths():
-            ext = '.extra_data.h5'
-            path = chunk_path + ext
-            if os.path.exists(path):
-                try:
-                    dfs.append(motif_extra_data_h5_to_df(path))
-                except IOError:
-                    if ignore_corrupt_chunks:
-                        self._log.warn('chunk %s is corrupt' % path)
-                        continue
+
+        for is_motif, path in self._iter_extra_data_files():
+
+            self._log.debug('found extra data chunk: %s (motif: %s)' % (path, is_motif))
+
+            # noinspection PyBroadException
+            try:
+                if is_motif:
+                    if path.endswith('.h5'):
+                        df = motif_extra_data_h5_to_df(self, path)
+                    elif path.endswith('.json'):
+                        df = motif_extra_data_json_to_df(self, path)
                     else:
-                        raise
-            else:
-                for ext in ('.extra.json', '.extra_data.json'):
-                    path = chunk_path + ext
-                    if os.path.exists(path):
+                        df = None
+
+                    if (df is not None) and (not df.empty):
+                        dfs.append(df)
+                    else:
+                        self._log.warn('chunk extra data %s is empty' % path)
+
+                else:
+                    if path.endswith('.json'):
                         with open(path, 'rt') as f:
-                            try:
-                                records = json.load(f)
-                            except ValueError:
-                                if ignore_corrupt_chunks:
-                                    self._log.warn('chunk %s is corrupt' % path)
-                                    continue
-                                else:
-                                    raise
+                            records = json.load(f)
                         dfs.append(pd.DataFrame(records))
+                    else:
+                        raise ValueError('unknown extra data file encountered')
+
+            except Exception:
+                if ignore_corrupt_chunks:
+                    self._log.warn('chunk extra data %s is corrupt' % path)
+                    continue
+                else:
+                    raise
         if dfs:
             return pd.concat(dfs, axis=0, ignore_index=True)
 
