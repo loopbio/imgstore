@@ -76,6 +76,11 @@ figdata.canvas.mpl_connect('button_press_event', on_plotclick)
 ax = figdata.add_subplot(111)
 # todo: axvline the store range?
 
-df.plot(subplots=True, ax=ax, sharex=True, style=',' if len(df) > 1e6 else '-')
+axes = df.plot(subplots=True, ax=ax, sharex=True, style=',' if len(df) > 1e6 else '-')
+
+# disable offset in axes, particulary the shared x which makes index hard to read
+# note: no idea why this doesnt work for the y axis too in mpl
+for _ax in axes:
+    _ax.ticklabel_format(useOffset=False)
 
 plt.show()
