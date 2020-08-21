@@ -131,7 +131,7 @@ you have a trustworthy OpenCV version
  * git clone this repository
  * `conda env create -f environment.yml`
 
-Note: conda will install Python3 by default. If you wish to install Python2 add `python=2` to the command, e.g. `conda env create -f environment-mac-windows.yml python=2`
+Note: conda will install Python3 by default. If you wish to install Python2 add `python=2` to the command, e.g. `conda env create -f environment.yml python=2`
 
 ## Installing only IMGStore and using system dependencies
 
@@ -163,13 +163,10 @@ To test against the package without installing first, run `python -m pytest`
 Note: by running pytest through it's python module interface, the interpreter adds `pwd` to
 top of `PYTHONPATH`, as opposed to running tests through `py.test` which doesn't.
 
-#### Release Checklist
+Note: if you recieve many failed tests with the error message 'The opencv backend does not actually have write support'
+or 'Your opencv build does support writing this codec', this is not an imagestore bug - it is a warning that
+you have an OpenCV version that does not support _Writing_ h264 encoded videos.
 
-* test with GPL opencv/ffmpeg
-* test with LGPL opencv/ffmpeg
-* test with Python2.7 and Python3
-* `git clean -dfx`
-* `python setup.py sdist bdist_wheel`
-* `twine upload --repository-url https://test.pypi.org/legacy/ dist/*`
-* (test with pip, new env)
-  * `pip install --index-url https://test.pypi.org/simple/ imgstore`
+Even if some tests fail due to these issues, you can stil use the imgstore package to _read_ h264 encoded
+video files.
+
