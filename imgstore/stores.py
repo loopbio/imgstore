@@ -377,10 +377,8 @@ class _ImgStore(object):
 
                 path = os.path.join(self._basedir, '%06d%s' % (int(chunk_n), ext))
                 if os.path.exists(path):
-                    out = True, path
+                    yield True, path
                     break
-                else:
-                    out = None
 
             else:
                 # for .. else
@@ -396,16 +394,11 @@ class _ImgStore(object):
 
                     path = chunk_path + ext
                     if os.path.exists(path):
-                        out = False, path
-                    else:
-                        out = None
-
-            if out is not None:
-                yield out
+                        yield False, path
 
     @property
     def has_extra_data(self):
-        for _ in self._iter_chunk_n_and_chunk_paths():
+        for _ in self._iter_extra_data_files():
             return True
         return False
 
@@ -1048,7 +1041,7 @@ class VideoImgStore(_ImgStore):
         frame = ensure_color(img)
         self._cap.write(frame)
         if not os.path.isfile(self._capfn):
-            raise Exception('The opencv backend does not actually have write support')
+            raise Exception('Your opencv build does support writing this codec')
         self._save_image_metadata(frame_number, frame_time)
 
     def _save_chunk(self, old, new):
