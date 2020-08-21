@@ -131,6 +131,7 @@ def test_all(tmpdir, fmt):
     d.close()
 
     d = stores.new_for_filename(os.path.join(d.filename, stores.STORE_MD_FILENAME), mode='r')
+    assert not d.has_extra_data
 
     assert d.user_metadata['timezone'] == 'Europe/Austria'
 
