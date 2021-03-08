@@ -118,39 +118,16 @@ Some simple tools for creating, converting and viewing imgstores are provided
 *IMGStore* depends on reliable OpenCV builds, and built with mp4/h264 support for
 writing mp4s.
 
-Once you have a conda environment with a recent and reliable OpenCV build,
+You can install opencv from pip or conda if you wish, or on linux you can use the system apt-get
+installed opencv if you create a virtual environment with `--system-site-packages`.
+
+Once you have a python (virtual) environment with a recent and reliable OpenCV build,
 you can install IMGStore from pip
 
 `$ pip install imgstore`
 
 After installing imgstore from any location, you should check it's tests pass to guarantee that
 you have a trustworthy OpenCV version
-
-## Installing from source and with all dependencies
-
- * git clone this repository
- * `conda env create -f environment.yml`
-
-Note: conda will install Python3 by default. If you wish to install Python2 add `python=2` to the command, e.g. `conda env create -f environment.yml python=2`
-
-## Installing only IMGStore and using system dependencies
-
-We recommend installing *IMGStore* **dependencies** using the conda package manager, however
-it is possible to create a virtual env which uses your system OpenCV install. The
-
-
-```sh
-# generate virtual env
-virtualenv ~/.envs/imgstore --system-site-packages
-# activate the virtual env
-source ~/.envs/imgstore/bin/activate
-# install imgstore
-pip install imgstore
-```
-
-Note: If you install in this manner you have to ensure that opencv is correct
-and has the required functionality (such as mp4 write support if required). Remember
-to run the tests `imgstore-test` after installing.
 
 ## Post install testing
 
@@ -164,9 +141,10 @@ Note: by running pytest through it's python module interface, the interpreter ad
 top of `PYTHONPATH`, as opposed to running tests through `py.test` which doesn't.
 
 Note: if you recieve many failed tests with the error message 'The opencv backend does not actually have write support'
-or 'Your opencv build does support writing this codec', this is not an imagestore bug - it is a warning that
-you have an OpenCV version that does not support _Writing_ h264 encoded videos.
+or 'Your opencv build does support writing this codec', this is __not an imgestore bug__ - it is a warning that
+you have an OpenCV version that does not support _Writing_ h264 encoded videos. This is often the case on
+windows.
 
-Even if some tests fail due to these issues, you can stil use the imgstore package to _read_ h264 encoded
-video files.
+**Even if some _write_ tests fail due to these issues, you can stil use the imgstore package to _read_ h264 encoded
+video files.**
 
