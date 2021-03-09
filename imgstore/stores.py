@@ -29,7 +29,7 @@ except ImportError:
 from .constants import DEVNULL, STORE_MD_FILENAME, STORE_LOCK_FILENAME, STORE_MD_KEY, \
     STORE_INDEX_FILENAME, EXTRA_DATA_FILE_EXTENSIONS, FRAME_MD as _FRAME_MD
 from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color,\
-    ensure_grayscale, motif_extra_data_h5_to_df, motif_extra_data_json_to_df
+    ensure_grayscale, motif_extra_data_h5_to_df, motif_extra_data_json_to_df, motif_extra_data_h5_attrs
 from .index import ImgStoreIndex
 
 
@@ -362,6 +362,9 @@ class _ImgStore(object):
                 os.unlink(path)
                 return path
 
+    def _get_chunk_metadata(self, chunk_n):
+        return self._index.get_chunk_metadata(chunk_n)
+
     def get_frame_metadata(self):
         return self._index.get_all_metadata()
 
@@ -404,6 +407,20 @@ class _ImgStore(object):
 
     def find_extra_data_files(self, extensions=EXTRA_DATA_FILE_EXTENSIONS):
         return [path for _, path in self._iter_extra_data_files(extensions=extensions)]
+
+    def get_extra_data_samplerate(self):
+        for c in self.find_extra_data_files(extensions=('.extra_data.h5',)):
+            attrs = motif_extra_data_h5_attrs(c)
+            ds = attrs['_datasets']
+            if len(ds) > 1:
+                raise ValueError('Multiple sample rates detected: please use motif_extra_data_h5_attrs')
+            elif len(ds) == 1:
+                try:
+                    return attrs[ds[0]]['samplerate']
+                except KeyError:
+                    pass
+
+        raise ValueError("No sample rate or dataset found in file")
 
     def get_extra_data(self, ignore_corrupt_chunks=False):
         dfs = []

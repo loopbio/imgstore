@@ -6,6 +6,7 @@ import numpy as np
 
 from .stores import new_for_filename, get_supported_formats, new_for_format
 from .ui import new_window
+from .util import motif_get_parse_true_fps
 
 _log = logging.getLogger('imgstore.apps')
 
@@ -26,6 +27,9 @@ def main_viewer():
         args.fps = 1000.0  # ensure w sleep at least 1ms
 
     store = new_for_filename(args.path[0])
+
+    _log.info('true fps: %s' % motif_get_parse_true_fps(store))
+    _log.info('fr fps: %s' % (1.0 / np.median(np.diff(store._get_chunk_metadata(0)['frame_time']))))
 
     win = new_window('imgstore', shape=store.image_shape)
     _log.debug('created window: %r' % win)

@@ -189,6 +189,32 @@ def motif_extra_data_json_to_df(store, path):
                 return df.sort_values(by=by).reset_index(drop=True)
 
 
+def motif_get_parse_true_fps(store, default=25.0, hwardware_only=False):
+    md = store.user_metadata
+    if 'hwframerate' in md:
+        return float(md['hwframerate'])
+    elif 'motifptpframerate' in md:
+        return float(md['motifptpframerate'])
+    elif (not hwardware_only) and \
+            (md.get('acquisitionframerate') and (md.get('acquisitionframerateenable', False) is True)):
+        return float(md['acquisitionframerate'])
+    elif default is None:
+        return 1.0 / np.median(np.diff(store._get_chunk_metadata(0)['frame_time']))
+    return default
+
+
+def motif_extra_data_h5_attrs(path):
+    import h5py
+
+    attrs = {}
+    with h5py.File(path, 'r') as f:
+        attrs['_datasets'] = [s.strip() for s in f.attrs['datasets'].decode('ascii').split(',')]
+        for g in f.keys():
+            attrs[g] = dict(f[g].attrs)
+
+    return attrs
+
+
 def motif_extra_data_h5_to_df(store, path):
     import h5py
     import pandas as pd

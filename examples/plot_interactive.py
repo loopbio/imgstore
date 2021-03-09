@@ -60,7 +60,7 @@ def on_plotclick(event):
 
             img, (fn, ft) = store.get_nearest_image(ts - delay)
 
-            print('fn (delay corrected): %s vs %s' % (fn, fn_orig))
+            print('fn (delay corrected): %s vs %s (index: %s)' % (fn, fn_orig, idx))
 
             figimg.suptitle("frame_number:%s\nframe_time:%s" % (fn, ft))
             imshowu8(img, aximg)
