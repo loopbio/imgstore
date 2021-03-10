@@ -454,7 +454,7 @@ class _ImgStore(object):
 
             except Exception:
                 if ignore_corrupt_chunks:
-                    self._log.warn('chunk extra data %s is corrupt' % path)
+                    self._log.warn('chunk extra data %s is corrupt' % path, exc_info=True)
                     continue
                 else:
                     raise

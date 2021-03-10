@@ -219,6 +219,12 @@ def motif_extra_data_h5_to_df(store, path):
     import h5py
     import pandas as pd
 
+    def _attr_string(_s):
+        try:
+            return _s.decode('ascii')
+        except AttributeError:
+            return _s
+
     with h5py.File(path, 'r') as f:
         dat = {}
 
@@ -231,11 +237,12 @@ def motif_extra_data_h5_to_df(store, path):
         mask = camera['frame_number'] >= 0
 
         # motif stores the names of datasets in a root attribute
-        datasets = [s.strip() for s in f.attrs['datasets'].decode('ascii').split(',')]
+        datasets = [s.strip() for s in _attr_string(f.attrs['datasets']).split(',')]
 
         for dsname in datasets:
             ds = f[dsname]
-            col_names = [s.strip() for s in ds.attrs['column_names'].decode('ascii').split(',')]
+            col_names = [s.strip() for s in _attr_string(ds.attrs['column_names']).split(',')]
+
             # trim the array
             arr = ds[..., mask]
 
