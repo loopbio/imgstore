@@ -15,6 +15,18 @@ Video data is broken into chunks, which can be individual video files `VideoImgS
 a directory full of images `DirectoryImgStore`. The format of the chunks determines if the store is
 compressed, uncompressed, lossless or lossy.
 
+Along side the video data Imgstore can also record different types of metadata:
+ * Recording (User) Metadata:  
+   This includes information set at the time of recording, such as 'genotype', that is constant
+   for the entire duration of recording.
+ * Frame Metadata:  
+   This is the `frame_number` and `frame_timestamp` for every frame in the imgstore
+ * Extra Data:  
+   This is DAQ and Audio data recorded by [Motif](http://loopbio.com/recording/) at a rate different, and
+   often faster than, the video framerate.
+
+See [Extracting Metadata](#extracting-metadata).
+
 ### Basic API
 
 There are only a few public API entry points exposed (most operations are
@@ -94,7 +106,9 @@ class ImgStore
 
 where 'frame index' OR 'frame number' can be passed.
 
-## Extracting Metadata or Extra data
+## Extracting Metadata
+
+To get the Recording (user) metadata access the `ImgStore.user_metadata` property.
 
 To get all the image metadata at once you can call `ImgStore.get_frame_metadata()`
 which will return a dictionary containing all `frame_number` and `frame_time`stamps.
