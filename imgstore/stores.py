@@ -5,6 +5,7 @@ import re
 import os.path
 import itertools
 import operator
+import sys
 import time
 import logging
 import glob
@@ -13,12 +14,15 @@ import datetime
 import shutil
 import json
 
+if sys.version_info >= (3, 9):
+    from zoneinfo import ZoneInfo
+else:
+    from backports.zoneinfo import ZoneInfo
+
 import cv2
 import yaml
 import numpy as np
 import pandas as pd
-import pytz
-import tzlocal
 import dateutil.parser
 
 try:
@@ -197,11 +201,11 @@ class _ImgStore(object):
             if 'timezone' in allmd:
                 # noinspection PyBroadException
                 try:
-                    tz = pytz.timezone(allmd['timezone'])
+                    tz = ZoneInfo(allmd['timezone'])
                 except Exception:
                     pass
             if tz is None:
-                tz = tzlocal.get_localzone()
+                tz = ZoneInfo(datetime.datetime.now().astimezone().tzname())
 
             # first the filename
             m = re.match(r"""(.*)(20[\d]{6}_\d{6}).*""", os.path.basename(self._basedir))
@@ -209,14 +213,15 @@ class _ImgStore(object):
                 name, datestr = m.groups()
                 # ive always been careful to make the files named with the local time
                 time_tuple = time.strptime(datestr, '%Y%m%d_%H%M%S')
-                _dt = datetime.datetime(*(time_tuple[0:6]))
-                dt = tz.localize(_dt).astimezone(pytz.utc)
+                _dt = datetime.datetime(*(time_tuple[0:6])).replace(tzinfo=tz)
+                dt = _dt.astimezone(datetime.timezone.utc)
 
             # then the modification time of the file
             if dt is None:
                 # file modifications are local time
                 ts = os.path.getmtime(fullpath)
-                dt = datetime.datetime.fromtimestamp(ts, tz=tzlocal.get_localzone()).astimezone(pytz.utc)
+                local_tz = datetime.datetime.now().astimezone().tzinfo
+                dt = datetime.datetime.fromtimestamp(ts, tz=local_tz).astimezone(datetime.timezone.utc)
 
             self._created_utc = dt
             self._timezone_local = tz
@@ -227,10 +232,10 @@ class _ImgStore(object):
             _dt = dateutil.parser.parse(smd['created_utc'])
             self._log.debug('parsed created_utc: %s (from %r)' % (_dt.isoformat(), _dt))
             try:
-                self._created_utc = _dt.astimezone(pytz.utc)  # aware object can be in any timezone
+                self._created_utc = _dt.astimezone(datetime.timezone.utc)  # aware object can be in any timezone
             except ValueError:  # naive
-                self._created_utc = _dt.replace(tzinfo=pytz.utc)  # d must be in UTC
-            self._timezone_local = pytz.timezone(smd['timezone_local'])
+                self._created_utc = _dt.replace(tzinfo=datetime.timezone.utc)  # d must be in UTC
+            self._timezone_local = ZoneInfo(smd['timezone_local'])
 
         # if encoding is unset, autoconvert is no-op
         self._codec_proc.set_default_code(self._encoding)
@@ -262,8 +267,8 @@ class _ImgStore(object):
 
         self._uuid = uuid.uuid4().hex
         # because fuck you python that utcnow is naieve. kind of fixed in python >3.2
-        self._created_utc = datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
-        self._timezone_local = tzlocal.get_localzone()
+        self._created_utc = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        self._timezone_local = ZoneInfo(datetime.datetime.now().astimezone().tzname())
 
         store_md = {'imgshape': write_imgshape,
                     'imgdtype': self._imgdtype,

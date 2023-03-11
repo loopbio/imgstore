@@ -40,8 +40,7 @@ setup(
         'numpy',
         'pandas',
         'pyyaml',
-        'pytz',
-        'tzlocal',
+        'backports.zoneinfo; python_version < "3.9.0"',
         'python-dateutil',
     ],
     tests_require=[
