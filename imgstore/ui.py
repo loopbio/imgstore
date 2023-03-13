@@ -68,7 +68,7 @@ def get_screen_resolution():
                     if m:
                         resolution = m.groups()[0]
             else:
-                out = subprocess.check_output(['xrandr'])
+                out = subprocess.check_output(['xrandr'], text=True)
                 resolution_line = [l for l in out.splitlines() if '*' in l][0]
                 resolution = resolution_line.split()[0]
         except subprocess.CalledProcessError as exc:
