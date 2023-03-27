@@ -18,7 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     include_package_data=True,
-    version='0.3.1',
+    version='0.3.2',
     url='https://github.com/loopbio/imgstore',
     author='John Stowers, Santi Villalba',
     author_email='john@loopbio.com, santi@loopbio.com',
@@ -40,6 +40,7 @@ setup(
         'pandas',
         'pyyaml',
         'backports.zoneinfo; python_version < "3.9.0"',
+        'tzlocal',
         'python-dateutil',
     ],
     tests_require=[
