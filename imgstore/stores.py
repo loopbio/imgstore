@@ -13,6 +13,7 @@ import uuid
 import datetime
 import shutil
 import json
+import tzlocal
 
 if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo
@@ -205,7 +206,7 @@ class _ImgStore(object):
                 except Exception:
                     pass
             if tz is None:
-                tz = ZoneInfo(datetime.datetime.now().astimezone().tzname())
+                tz = ZoneInfo(tzlocal.get_localzone_name())
 
             # first the filename
             m = re.match(r"""(.*)(20[\d]{6}_\d{6}).*""", os.path.basename(self._basedir))
@@ -268,7 +269,7 @@ class _ImgStore(object):
         self._uuid = uuid.uuid4().hex
         # because fuck you python that utcnow is naieve. kind of fixed in python >3.2
         self._created_utc = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
-        self._timezone_local = ZoneInfo(datetime.datetime.now().astimezone().tzname())
+        self._timezone_local = ZoneInfo(tzlocal.get_localzone_name())
 
         store_md = {'imgshape': write_imgshape,
                     'imgdtype': self._imgdtype,
