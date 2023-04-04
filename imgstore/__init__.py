@@ -5,4 +5,4 @@ from .util import ensure_color, ensure_grayscale
 
 test = main_test
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'
