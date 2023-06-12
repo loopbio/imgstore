@@ -825,7 +825,7 @@ def _extract_ranges(data):
 class DirectoryImgStore(_ImgStore):
     _supported_modes = 'wr'
 
-    _cv2_fmts = {'tif', 'png', 'jpg', 'ppm', 'pgm', 'bmp'}
+    _cv2_fmts = {'tif', 'png', 'jpg', 'ppm', 'pgm', 'bmp', 'tif+color', 'png+color', 'jpg+color', 'bmp+color'}
     _raw_fmts = {'npy', 'bpk'}
 
     _DEFAULT_CHUNKSIZE = 200
@@ -845,6 +845,15 @@ class DirectoryImgStore(_ImgStore):
             if 'chunksize' not in kwargs:
                 kwargs['chunksize'] = self._DEFAULT_CHUNKSIZE
             kwargs['encoding'] = kwargs.pop('encoding', None)
+
+        kwargs['write_encode_encoding'] = None
+
+        if kwargs['format'].endswith('+color'):
+            kwargs['format'] = kwargs['format'].replace('+color', '')
+
+            if kwargs['encoding']:
+                kwargs['write_encode_encoding'] = kwargs['encoding']
+                kwargs['encoding'] = None  # and so in the store it is no longer encoded
 
         _ImgStore.__init__(self, **kwargs)
 
