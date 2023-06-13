@@ -90,6 +90,9 @@ class ImageCodecProcessor(object):
         # pprint.pprint(self._cv2_code_to_enum)
         # pprint.pprint(self._cv2_enum_to_code)
 
+    def __repr__(self):
+        return "<ImageCodecProcessor(%s)>" % self._default_code
+
     @classmethod
     def from_pylon_format(cls, s):
         # pylon disagrees with opencv (B & R are always switched)
