@@ -1,0 +1,46 @@
+name: Build Deb File And PyPI
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  build-pypi:
+    name: Build and publish Python distributions to PyPI
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python3.10 -m pip install --upgrade pip
+        python3.10 -m pip install setuptools wheel
+    - name: Build
+      run: |
+        python3.10 setup.py sdist bdist_wheel
+    - name: Publish distribution to PyPI
+      if: startsWith(github.event.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.pypi_password }}
+  build-debs:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install system dependencies
+      run: sudo apt-get install ruby ruby-rubygems
+    - name: Install FPM
+      run: gem install --user-install --no-document fpm -v 1.15.1
+    - name: Build debs
+      run: make -f Makefile.2204 FPM=$HOME/.local/share/gem/ruby/3.0.0/bin/fpm clean deb
+    - name: MD5SUM debs
+      run: md5sum *.deb > MD5SUM
+    - uses: ncipollo/release-action@v1
+      with:
+        artifacts: "*.deb"
+        bodyFile: "MD5SUM"
+        token: ${{ secrets.GITHUB_TOKEN }}

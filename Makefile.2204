@@ -1,0 +1,35 @@
+VERSION=$(shell grep -oP "^__version__ = '\K([^'~]+)(?=')" imgstore/__init__.py | sed -r 's/-/~/g')
+PKG_VERSION=0jrs1
+
+FPM?=fpm
+PYTHON?=python3
+
+deb: python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb
+
+python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: imgstore $(MAKEFILE_LIST)
+	$(FPM) --verbose --force \
+		--maintainer "John Stowers <john.stowers@gmail.com>" \
+		-s python -t deb \
+		-n python3-imgstore \
+		--no-python-dependencies \
+		--python-internal-pip \
+		--python-bin=${PYTHON} \
+		--python-package-name-prefix=python3 \
+		--version ${VERSION}-${PKG_VERSION} \
+		-d "python3-h5py" \
+		-d "python3-numpy" \
+		-d "python3-pandas" \
+		-d "python3-yaml" \
+		-d "python3-dateutil" \
+		-d "python3-tzlocal" \
+		-d "python3-opencv" \
+		$<
+
+imgstore:
+	git clone -b ${VERSION} https://github.com/loopbio/imgstore.git ./imgstore
+
+clean:
+	rm -rf ./imgstore
+	rm -f python-imgstore_${VERSION}-${PKG_VERSION}_all.deb
+
+.PHONY: clean
