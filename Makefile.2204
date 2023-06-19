@@ -6,7 +6,7 @@ PYTHON?=python3
 
 deb: python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb
 
-python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: imgstore $(MAKEFILE_LIST)
+python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: setup.py $(MAKEFILE_LIST)
 	$(FPM) --verbose --force \
 		--maintainer "John Stowers <john.stowers@gmail.com>" \
 		-s python -t deb \
@@ -25,11 +25,7 @@ python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: imgstore $(MAKEFILE_LIST)
 		-d "python3-opencv" \
 		$<
 
-imgstore:
-	git clone -b ${VERSION} https://github.com/loopbio/imgstore.git ./imgstore
-
 clean:
-	rm -rf ./imgstore
 	rm -f python-imgstore_${VERSION}-${PKG_VERSION}_all.deb
 
 .PHONY: clean
