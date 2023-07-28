@@ -857,7 +857,7 @@ class DirectoryImgStore(_ImgStore):
 
         kwargs['write_encode_encoding'] = None
 
-        if kwargs['format'].endswith('+color'):
+        if kwargs.get('format', '').endswith('+color'):
             kwargs['format'] = kwargs['format'].replace('+color', '')
 
             if kwargs['encoding']:
