@@ -141,9 +141,18 @@ you can install IMGStore from pip
 `$ pip install imgstore`
 
 After installing imgstore from any location, you should check it's tests pass to guarantee that
-you have a trustworthy OpenCV version
+you have a trustworthy OpenCV version.
+
+If you must install opencv from pip, such as for only reading imgstores, you can
+use the following command to install the latest 4.8 version
+
+`$ pip install "opencv-python < 4.9"`
 
 ## Post install testing
+
+Test libraries are not installed by default. To do so, install pytest
+
+`$ pip install "pytest < 8"`
 
 You should always run the command `imgstore-test` after installing imgstore. If your
 environment is working correctly you should see a lot of text printed, followed by the
