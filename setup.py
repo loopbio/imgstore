@@ -22,6 +22,7 @@ setup(
     url='https://github.com/loopbio/imgstore',
     author='John Stowers, Santi Villalba',
     author_email='john@loopbio.com, santi@loopbio.com',
+    python_requires='>=3.6',
     packages=find_packages(),
     classifiers=[
         'Intended Audience :: Science/Research',
