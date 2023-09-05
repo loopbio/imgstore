@@ -559,6 +559,16 @@ class _ImgStore(object):
         return 0.
 
     @property
+    def frame_time_min(self):
+        if np.isreal(self._t0):
+            return self._t0
+
+    @property
+    def frame_time_max(self):
+        if np.isreal(self._tN):
+            return self._tN
+
+    @property
     def mode(self):
         return self._mode
 
