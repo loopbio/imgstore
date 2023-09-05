@@ -79,17 +79,17 @@ from imgstore import new_for_filename
 
 store = new_for_filename('mystore/metadata.yaml')
 
-print 'frames in store:', store.frame_count
-print 'min frame number:', store.frame_min
-print 'max frame number:', store.frame_max
+print('frames in store:', store.frame_count)
+print('min frame number:', store.frame_min)
+print('max frame number:', store.frame_max)
 
 # read first frame
 img, (frame_number, frame_timestamp) = store.get_next_image()
-print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
+print('framenumber:', frame_number, 'timestamp:', frame_timestamp)
 
 # read last frame
 img, (frame_number, frame_timestamp) = store.get_image(store.frame_max)
-print 'framenumber:', frame_number, 'timestamp:', frame_timestamp
+print('framenumber:', frame_number, 'timestamp:', frame_timestamp)
 ```
 
 ## Extracting frames: frame index vs frame number
