@@ -122,6 +122,8 @@ Some simple tools for creating, converting and viewing imgstores are provided
 
 * `imgstore-view /path/to/store`
   * view an imgstore
+  * shows frame number/time.
+  * 'Space' to pause/play, 'Esc' or 'q' to quit.
 * `imgstore-save --format 'avc1/mp4' --source /path/to/input.mp4 /path/to/store/to/save`
   * `--source` if omitted will be the first webcam
 * `imgstore-test`
