@@ -148,6 +148,9 @@ use the following command to install the latest 4.8 version
 
 `$ pip install "opencv-python < 4.9"`
 
+*The last version to support python2 was imgstore 2.9. (or commit 5a95d1d4454fb2a74f5a2b0d6ee7b75647b0aedb).
+If you need python2 support, you should install from these version/s*
+
 ## Post install testing
 
 Test libraries are not installed by default. To do so, install pytest
