@@ -1,4 +1,5 @@
 import re
+import sys
 import datetime
 import collections
 
@@ -6,6 +7,11 @@ import cv2
 import json
 
 import numpy as np
+
+if sys.version_info >= (3, 9):
+    from zoneinfo import ZoneInfo
+else:
+    from backports.zoneinfo import ZoneInfo
 
 
 if cv2.__version__.startswith(('3.', '4.')):
@@ -262,3 +268,14 @@ def motif_extra_data_h5_to_df(store, path):
         dat['sample_delay'] = np.asarray(f['sample_delay'])[mask]
 
         return pd.DataFrame(dat)
+
+
+def motif_get_recording_timezone(store):
+    _, tz = store.created
+    if store.user_metadata and (store.user_metadata.get('timezone')):
+        try:
+            return ZoneInfo(store.user_metadata['timezone'])
+        except:
+            pass
+    return tz
+
