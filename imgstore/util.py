@@ -279,3 +279,16 @@ def motif_get_recording_timezone(store):
             pass
     return tz
 
+
+def get_local_timezone():
+    # tzlocal is probbably the worst API I have ever used at maintaining backwards
+    # compatibility.
+    try:
+        return tzlocal.get_localzone().zone
+    except AttributeError:
+        return tzlocal.get_localzone_name()
+
+
+def get_local_timezone_zoneinfo():
+    return ZoneInfo(get_local_timezone())
+

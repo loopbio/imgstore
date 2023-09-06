@@ -33,18 +33,10 @@ except ImportError:
 
 from .constants import DEVNULL, STORE_MD_FILENAME, STORE_LOCK_FILENAME, STORE_MD_KEY, \
     STORE_INDEX_FILENAME, EXTRA_DATA_FILE_EXTENSIONS, FRAME_MD as _FRAME_MD
-from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color,\
-    ensure_grayscale, motif_extra_data_h5_to_df, motif_extra_data_json_to_df, motif_extra_data_h5_attrs
+from .util import ImageCodecProcessor, JsonCustomEncoder, FourCC, ensure_color, \
+    ensure_grayscale, motif_extra_data_h5_to_df, motif_extra_data_json_to_df, motif_extra_data_h5_attrs, \
+    get_local_timezone_zoneinfo
 from .index import ImgStoreIndex
-
-
-def _get_tzlocal_zone():
-    # tzlocal is probbably the worst API I have ever used at maintaining backwards
-    # compatibility.
-    try:
-        return tzlocal.get_localzone().zone
-    except AttributeError:
-        return tzlocal.get_localzone_name()
 
 
 _VERBOSE_DEBUG_GETS = False
@@ -215,7 +207,7 @@ class _ImgStore(object):
                 except Exception:
                     pass
             if tz is None:
-                tz = ZoneInfo(_get_tzlocal_zone())
+                tz = get_local_timezone_zoneinfo()
 
             # first the filename
             m = re.match(r"""(.*)(20[\d]{6}_\d{6}).*""", os.path.basename(self._basedir))
@@ -278,7 +270,7 @@ class _ImgStore(object):
         self._uuid = uuid.uuid4().hex
         # because fuck you python that utcnow is naieve. kind of fixed in python >3.2
         self._created_utc = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
-        self._timezone_local = ZoneInfo(_get_tzlocal_zone())
+        self._timezone_local = get_local_timezone_zoneinfo()
 
         store_md = {'imgshape': write_imgshape,
                     'imgdtype': self._imgdtype,
