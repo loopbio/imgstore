@@ -32,13 +32,58 @@ See [Extracting Metadata](#extracting-metadata).
 There are only a few public API entry points exposed (most operations are
 done on `ImgStore` objects (see writing and reading examples below).
 
- * `new_for_filename(path)` - Open a store for reading
+ * `new_for_filename(path)`  
+   open a store for reading.
  * `new_for_format(format, path, **kwargs)`
     * Open a store for writing
     * You also need to pass `imgshape=` and `imgdtype`
     * Note: `imgshape` is the array shape, i.e. `(h,w,d)` and not `(w,h)`
- * `get_supported_formats()` - list supports formats (remember to test after install)
- * `extract_only_frame(path, frame_index)` - extract a single frame at given *index* from file
+ * `get_supported_formats()`  
+   list supports formats (remember to test after install).
+ * `extract_only_frame(path, frame_index)`  
+   extract a single frame at given *frame_index* from file, for example a quick way to get the 1st frame.
+
+Images in an imgstore are identified or located 3 ways
+
+1. `frame_number`  
+   an integer, usually directly from the camera, in the range of `N ... M`. The first frame in an imagestore is not necessarily `N=frame_number=0`.
+2. `frame_time`  
+   a floating point number in seconds, in 99% of cases and camera configurations, this is the unix epoch - the number of seconds since 1970-1-1 (in UTC).
+3. `frame_index`  
+   an integer, in the range `0 ... P`. The first frame in the store is always `frame_index=0`.
+
+## Example: Read a store
+
+```python
+from imgstore import new_for_filename
+
+store = new_for_filename('mystore/metadata.yaml')
+
+print('frames in store:', store.frame_count)
+print('min frame number:', store.frame_min)
+print('max frame number:', store.frame_max)
+
+# read first frame
+img, (frame_number, frame_timestamp) = store.get_next_image()
+print('framenumber:', frame_number, 'timestamp:', frame_timestamp)
+
+# read last frame
+img, (frame_number, frame_timestamp) = store.get_image(store.frame_max)
+print('framenumber:', frame_number, 'timestamp:', frame_timestamp)
+```
+
+### Read API
+
+ * `get_next_image()`  
+   read images sequentially.
+ * `get_image(frame_number, exact_only=True, frame_index=None)`  
+   read an image by its `frame_number` or `frame_index`. coordinates.
+ * `get_nearest_image(frame_time)`  
+   return the image nearest to the supplied timestamp.
+ * `convert_frame_time_to_datetime(frame_time)`  
+   converts the frame timestamp to a datetime with timezone information according to the
+   store metadata which contains the timezone it was recorded in.
+
 
 ## Example: Write a store
 
@@ -72,25 +117,12 @@ and easily combined later.
 store.add_extra_data(temperature=42.5, humidity=12.4)
 ```
 
-## Example: Read a store
+### Write API
 
-```python
-from imgstore import new_for_filename
-
-store = new_for_filename('mystore/metadata.yaml')
-
-print('frames in store:', store.frame_count)
-print('min frame number:', store.frame_min)
-print('max frame number:', store.frame_max)
-
-# read first frame
-img, (frame_number, frame_timestamp) = store.get_next_image()
-print('framenumber:', frame_number, 'timestamp:', frame_timestamp)
-
-# read last frame
-img, (frame_number, frame_timestamp) = store.get_image(store.frame_max)
-print('framenumber:', frame_number, 'timestamp:', frame_timestamp)
-```
+* `add_image(img, frame_number, frame_time)`  
+  adds an image to the store.
+* `close()`  
+  closes the store after writing, also supports the context manager protocol.
 
 ## Extracting frames: frame index vs frame number
 
