@@ -43,7 +43,7 @@ def main_viewer():
         try:
             _ltxt_fmt = '{:%d}' % (len('%d' % int(store.frame_max)))
             def _get_status_bar_txt(_frame_number, _frame_time):
-                return _ltxt_fmt.format(_frame_number), datetime.datetime.fromtimestamp(_frame_time, tz=tz).isoformat()
+                return _ltxt_fmt.format(_frame_number), store.convert_frame_time_to_datetime(_frame_time, tz=tz).isoformat()
 
             _ltxt, _rtxt = _get_status_bar_txt(store.frame_max, store.frame_time_max)
             _rend = FontRendererStatusBar.new_for_image_size((store.image_shape[1], store.image_shape[0]),

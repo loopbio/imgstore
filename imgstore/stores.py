@@ -586,6 +586,13 @@ class _ImgStore(object):
                                        frame_n=frame_n,
                                        smd=smd)
 
+    def convert_frame_time_to_datetime(self, frame_time, tz=None):
+        """ converts a raw frame_time (usually seconds since the epoch), to a
+        datetime object in the timezone of the imgstore, or that supplied (tz) """
+        if tz is None:
+            _, tz = self.created
+        return datetime.datetime.fromtimestamp(frame_time, tz=tz)
+
     def disable_decoding(self):
         self._decode_image = lambda x: x
 
