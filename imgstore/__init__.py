@@ -6,4 +6,4 @@ from .util import ensure_color, ensure_grayscale
 test = main_test
 
 # use only single quotes here (you can write beta versions like -beta4 etc)
-__version__ = '0.3.6'
+__version__ = '0.3.7'
