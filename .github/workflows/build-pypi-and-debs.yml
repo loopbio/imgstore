@@ -7,29 +7,47 @@ on:
 
 jobs:
   build-pypi:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
-    - name: Install dependencies
-      run: |
-        python3.10 -m pip install --upgrade pip
-        python3.10 -m pip install setuptools wheel
+        python-version: "3.x"
+    - name: Install build
+      run: python3 -m pip install --user build
     - name: Build
-      run: |
-        python3.10 setup.py sdist bdist_wheel
+      run: python3 -m build
     - name: Publish distribution to PyPI
       if: startsWith(github.event.ref, 'refs/tags')
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@release/v1
+
+  build-debs-2404:
+    if: startsWith(github.ref, 'refs/tags/v0.4')
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: sudo apt-get install ruby ruby-rubygems
+    - name: Install FPM
+      run: gem install --user-install --no-document fpm -v 1.17.0
+    - name: Build debs
+      run: make -f Makefile.2404 FPM=$HOME/.local/share/gem/ruby/3.2.0/bin/fpm clean deb
+    - name: MD5SUM debs
+      run: md5sum *.deb > MD5SUM
+    - uses: ncipollo/release-action@v1
       with:
-        password: ${{ secrets.pypi_password }}
-  build-debs:
+        artifacts: "*.deb"
+        bodyFile: "MD5SUM"
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-debs-2204:
+    if: startsWith(github.ref, 'refs/tags/v0.3')
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install system dependencies
       run: sudo apt-get install ruby ruby-rubygems
     - name: Install FPM
