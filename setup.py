@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding=utf-8
 
 # Authors: John Stowers <john@loopbio.com>, Santi Villalba <santi@loopbio.com>
 # Licence: BSD 3 clause
@@ -8,8 +7,8 @@ import os.path as op
 from setuptools import setup, find_packages
 
 this_directory = op.abspath(op.dirname(__file__))
-with open(op.join(this_directory, 'README.md'), 'rb') as f:
-    long_description = f.read().decode('UTF-8')
+with open(op.join(this_directory, 'README.md'), 'r', encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name='imgstore',
@@ -18,7 +17,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     include_package_data=True,
-    version='0.3.7',
+    version='0.4.0',
     url='https://github.com/loopbio/imgstore',
     author='John Stowers, Santi Villalba',
     author_email='john@loopbio.com, santi@loopbio.com',
@@ -35,6 +34,8 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
     ],
     install_requires=[
         'numpy',

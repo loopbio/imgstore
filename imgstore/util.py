@@ -15,11 +15,7 @@ else:
     from backports.zoneinfo import ZoneInfo
 
 
-if cv2.__version__.startswith(('3.', '4.')):
-    FourCC = cv2.VideoWriter_fourcc
-else:
-    # noinspection PyUnresolvedReferences
-    FourCC = cv2.cv.CV_FOURCC
+FourCC = cv2.VideoWriter_fourcc
 
 
 def _cvt_color(img, code, ensure_copy=True):

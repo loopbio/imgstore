@@ -1,13 +1,4 @@
-try:
-    # python 3
-    # noinspection PyProtectedMember
-    from subprocess import DEVNULL
-    # noinspection PyShadowingBuiltins
-    xrange = range
-except ImportError:
-    # python 2
-    import os
-    DEVNULL = open(os.devnull, 'r+b')
+from subprocess import DEVNULL
 
 STORE_MD_KEY = '__store'
 STORE_MD_FILENAME = 'metadata.yaml'
