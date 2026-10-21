@@ -1,13 +1,18 @@
 VERSION=$(shell grep -oP "^__version__ = '\K([^'~]+)(?=')" imgstore/__init__.py | sed -r 's/-/~/g')
 PKG_VERSION=0jrs1
+DEB_DIR?=.
 
 FPM?=fpm
 PYTHON?=python3
+# fpm >= 1.16 stages python packages with pip install --root, which silently skips the
+# wheel when the same version is already installed on the build host
+export PIP_IGNORE_INSTALLED=1
 
-deb: python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb
+deb: ${DEB_DIR}/python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb
 
-python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: setup.py $(MAKEFILE_LIST)
+${DEB_DIR}/python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: setup.py $(MAKEFILE_LIST) | ${DEB_DIR}
 	$(FPM) --verbose --force \
+		-p $@ \
 		--maintainer "John Stowers <john.stowers@gmail.com>" \
 		-s python -t deb \
 		-n python3-imgstore \
@@ -26,6 +31,10 @@ python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb: setup.py $(MAKEFILE_LIST)
 		$<
 
 clean:
-	rm -f python-imgstore_${VERSION}-${PKG_VERSION}_all.deb
+	rm -rf build imgstore.egg-info
+	rm -f ${DEB_DIR}/python3-imgstore_${VERSION}-${PKG_VERSION}_all.deb
+
+${DEB_DIR}:
+	mkdir -p $@
 
 .PHONY: clean
